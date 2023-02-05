@@ -29,6 +29,10 @@ object Main : KoinComponent {
     private val issueParser: IssueParser by inject()
     private val pullRequestParser: PullRequestParser by inject()
     private val infoBagCosmeticFormatter: InfoBagCosmeticFormatter by inject()
+    private val processedIssues = mutableSetOf<Int>()
+    private val processedPullRequests = mutableSetOf<Int>()
+    private var expectedTotalPullRequests = 0
+    private var expectedTotalIssues = 0
 
     fun run() {
         measureTime {
@@ -48,14 +52,20 @@ object Main : KoinComponent {
                 val infoBag = InfoBag()
 
                 launch {
-                    fetchSdk.response().collect {
-                        when (it) {
-                            is FetchSdkResponse.Issue -> issueParser.parse(it, infoBag)
-                            FetchSdkResponse.NoResponse -> {
-                                println("No response")
-                            }
+                    fetchSdk.response().collect { fetchSdkResponse ->
+                        when (fetchSdkResponse) {
+                            is FetchSdkResponse.Issue -> issueParser.parse(fetchSdkResponse, infoBag)
+                                .also {
+                                    processedIssues.add(fetchSdkResponse.fetchIssuesItem.number)
+                                    print("\rProcessed issue: ${processedIssues.size}/$expectedTotalIssues")
+                                }
 
-                            is FetchSdkResponse.PullRequest -> pullRequestParser.parse(it, infoBag)
+                            is FetchSdkResponse.PullRequest -> pullRequestParser.parse(fetchSdkResponse, infoBag)
+                                .also {
+                                    processedPullRequests.add(fetchSdkResponse.fetchPullRequestItem.number)
+                                    print("\rProcessed pull requests: ${processedPullRequests.size}/$expectedTotalPullRequests")
+                                }
+
                             FetchSdkResponse.Completed -> {
                                 infoBagCosmeticFormatter.format(infoBag)
                                 with(File("github_report.json")) {
@@ -67,6 +77,10 @@ object Main : KoinComponent {
                                 }
                                 cancel()
                             }
+
+                            is FetchSdkResponse.ExpectedIssuesTotal -> expectedTotalIssues = fetchSdkResponse.expected
+                            is FetchSdkResponse.ExpectedPullRequestTotal -> expectedTotalPullRequests =
+                                fetchSdkResponse.expected
                         }
                     }
                 }

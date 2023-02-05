@@ -24,7 +24,6 @@ object FetchModule {
         single {
             HttpClient(CIO) {
                 engine {
-                    threadsCount = 10
                     pipelining = true
                     endpoint {
                         pipelineMaxSize = 100
@@ -49,7 +48,7 @@ object FetchModule {
                     }
                 }
                 install(Logging) {
-                    level = LogLevel.INFO
+                    level = LogLevel.NONE
                 }
             }
         }

@@ -1,11 +1,8 @@
 package com.bendaniel10
 
 import com.bendaniel10.model.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.koin.core.component.KoinComponent
@@ -22,7 +19,8 @@ data class FetchSdkStartParams(
 )
 
 sealed class FetchSdkResponse {
-    object NoResponse : FetchSdkResponse()
+    data class ExpectedPullRequestTotal(val expected: Int) : FetchSdkResponse()
+    data class ExpectedIssuesTotal(val expected: Int) : FetchSdkResponse()
     object Completed : FetchSdkResponse()
     data class Issue(val fetchIssuesItem: FetchIssuesItem, val fetchIssueEvent: IssueEventsResponse) :
         FetchSdkResponse()
@@ -44,10 +42,18 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
     private val response = MutableSharedFlow<FetchSdkResponse>(replay = 0, extraBufferCapacity = Channel.UNLIMITED)
     override suspend fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
         try {
-            // Emit pull requests
-            processPullRequests(fetchSdkStartParams, coroutineScope)
-            // Emit issues
-            processIssues(fetchSdkStartParams, coroutineScope)
+            listOf(
+                // Emit pull requests
+                coroutineScope.launch {
+                    processPullRequests(
+                        fetchSdkStartParams,
+                        coroutineScope,
+                        emitTotalCount = true
+                    )
+                },
+                // Emit issues
+                coroutineScope.launch { processIssues(fetchSdkStartParams, coroutineScope, emitTotalCount = true) }
+            ).joinAll()
             // Done
             response.emit(FetchSdkResponse.Completed)
         } catch (ex: Exception) {
@@ -55,10 +61,17 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         }
     }
 
-    private suspend fun processIssues(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
+    private suspend fun processIssues(
+        fetchSdkStartParams: FetchSdkStartParams,
+        coroutineScope: CoroutineScope,
+        emitTotalCount: Boolean = false
+    ) {
         fetchIssues(fetchSdkStartParams, 1).also { issues ->
+            if (emitTotalCount) {
+                response.emit(FetchSdkResponse.ExpectedIssuesTotal(issues.totalCount))
+            }
             issues.items.map { issue ->
-                coroutineScope.async {
+                coroutineScope.async(Dispatchers.IO) {
                     emitIssueResponse(fetchSdkStartParams, issue)
                 }
             }.awaitAll()
@@ -68,7 +81,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
                 fetchIssues(fetchSdkStartParams, currentPage).also { otherIssues ->
                     otherIssues.items.map { issue ->
-                        coroutineScope.async {
+                        coroutineScope.async(Dispatchers.IO) {
                             emitIssueResponse(fetchSdkStartParams, issue)
                         }
                     }.awaitAll()
@@ -76,7 +89,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
                 val newAnalyticsStartDate = fetchIssues(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
-                    .items.sortedByDescending { OffsetDateTime.parse(it.createdAt) }.first().createdAt
+                    .items.sortedBy { OffsetDateTime.parse(it.createdAt) }.last().createdAt
                 println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processIssues(
                     fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate),
@@ -86,10 +99,17 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         }
     }
 
-    private suspend fun processPullRequests(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
+    private suspend fun processPullRequests(
+        fetchSdkStartParams: FetchSdkStartParams,
+        coroutineScope: CoroutineScope,
+        emitTotalCount: Boolean = false
+    ) {
         fetchPullRequests(fetchSdkStartParams, 1).also { pullRequests ->
+            if (emitTotalCount) {
+                response.emit(FetchSdkResponse.ExpectedPullRequestTotal(pullRequests.totalCount))
+            }
             pullRequests.items.map { pr ->
-                coroutineScope.async {
+                coroutineScope.async(Dispatchers.IO) {
                     emitPullRequestResponse(fetchSdkStartParams, pr)
                 }
 
@@ -99,7 +119,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
                 fetchPullRequests(fetchSdkStartParams, currentPage).also { otherPullRequests ->
                     otherPullRequests.items.map { pr ->
-                        coroutineScope.async {
+                        coroutineScope.async(Dispatchers.IO) {
                             emitPullRequestResponse(fetchSdkStartParams, pr)
                         }
                     }.awaitAll()
@@ -107,7 +127,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
                 val newAnalyticsStartDate = fetchPullRequests(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
-                    .items.sortedByDescending { OffsetDateTime.parse(it.createdAt) }.first().createdAt
+                    .items.sortedBy { OffsetDateTime.parse(it.createdAt) }.last().createdAt
                 println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processPullRequests(
                     fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate),
@@ -221,5 +241,5 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
     override fun response() = response
 }
 
-const val MODERATE_DELAY = 500L
+const val MODERATE_DELAY = 2_500L
 const val MAX_GITHUB_SEARCH_FETCH_PAGE = 10
