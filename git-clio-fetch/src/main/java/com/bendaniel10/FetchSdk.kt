@@ -1,6 +1,9 @@
 package com.bendaniel10
 
 import com.bendaniel10.model.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -32,38 +35,43 @@ sealed class FetchSdkResponse {
 }
 
 interface FetchSdk {
-    suspend fun start(fetchSdkStartParams: FetchSdkStartParams)
+    suspend fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope)
     fun response(): Flow<FetchSdkResponse>
 }
 
 class FetchSdkImpl : FetchSdk, KoinComponent {
     private val fetchRestApi: FetchRestApi by inject()
     private val response = MutableSharedFlow<FetchSdkResponse>(replay = 0, extraBufferCapacity = Channel.UNLIMITED)
-    override suspend fun start(fetchSdkStartParams: FetchSdkStartParams) {
+    override suspend fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
         try {
             // Emit pull requests
-            processPullRequests(fetchSdkStartParams)
+            processPullRequests(fetchSdkStartParams, coroutineScope)
             // Emit issues
-            processIssues(fetchSdkStartParams)
+            processIssues(fetchSdkStartParams, coroutineScope)
             // Done
-            response.tryEmit(FetchSdkResponse.Completed)
+            response.emit(FetchSdkResponse.Completed)
         } catch (ex: Exception) {
             ex.printStackTrace()
         }
     }
 
-    private suspend fun processIssues(fetchSdkStartParams: FetchSdkStartParams) {
+    private suspend fun processIssues(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
         fetchIssues(fetchSdkStartParams, 1).also { issues ->
-            for (issue in issues.items) {
-                emitIssueResponse(fetchSdkStartParams, issue)
-            }
+            issues.items.map { issue ->
+                coroutineScope.async {
+                    emitIssueResponse(fetchSdkStartParams, issue)
+                }
+            }.awaitAll()
+
 
             val totalPages = ceil(issues.totalCount.toFloat() / 100f).toInt()
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
                 fetchIssues(fetchSdkStartParams, currentPage).also { otherIssues ->
-                    for (issue in otherIssues.items) {
-                        emitIssueResponse(fetchSdkStartParams, issue)
-                    }
+                    otherIssues.items.map { issue ->
+                        coroutineScope.async {
+                            emitIssueResponse(fetchSdkStartParams, issue)
+                        }
+                    }.awaitAll()
                 }
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
@@ -71,24 +79,30 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                     .items.sortedByDescending { OffsetDateTime.parse(it.createdAt) }.first().createdAt
                 println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processIssues(
-                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate)
+                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate),
+                    coroutineScope
                 )
             }
         }
     }
 
-    private suspend fun processPullRequests(fetchSdkStartParams: FetchSdkStartParams) {
+    private suspend fun processPullRequests(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
         fetchPullRequests(fetchSdkStartParams, 1).also { pullRequests ->
-            for (pr in pullRequests.items) {
-                emitPullRequestResponse(fetchSdkStartParams, pr)
-            }
+            pullRequests.items.map { pr ->
+                coroutineScope.async {
+                    emitPullRequestResponse(fetchSdkStartParams, pr)
+                }
+
+            }.awaitAll()
 
             val totalPages = ceil(pullRequests.totalCount.toFloat() / 100f).toInt()
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
                 fetchPullRequests(fetchSdkStartParams, currentPage).also { otherPullRequests ->
-                    for (pr in otherPullRequests.items) {
-                        emitPullRequestResponse(fetchSdkStartParams, pr)
-                    }
+                    otherPullRequests.items.map { pr ->
+                        coroutineScope.async {
+                            emitPullRequestResponse(fetchSdkStartParams, pr)
+                        }
+                    }.awaitAll()
                 }
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
@@ -96,14 +110,15 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                     .items.sortedByDescending { OffsetDateTime.parse(it.createdAt) }.first().createdAt
                 println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processPullRequests(
-                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate)
+                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate),
+                    coroutineScope
                 )
             }
         }
     }
 
     private suspend fun emitIssueResponse(fetchSdkStartParams: FetchSdkStartParams, issues: FetchIssuesItem) {
-        response.tryEmit(
+        response.emit(
             FetchSdkResponse.Issue(
                 issues,
                 fetchIssueEvent(fetchSdkStartParams, issues.number)
@@ -115,7 +130,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         fetchSdkStartParams: FetchSdkStartParams,
         pr: FetchPullRequestItem
     ) {
-        response.tryEmit(
+        response.emit(
             FetchSdkResponse.PullRequest(
                 pr,
                 fetchPullRequestById(fetchSdkStartParams, pr.number),

@@ -1,8 +1,10 @@
 package com.bendaniel10
 
 import com.bendaniel10.di.FetchModule
-import com.bendaniel10.parser.CompositeIssueParser
-import com.bendaniel10.parser.CompositePullRequestParser
+import com.bendaniel10.di.ParseModule
+import com.bendaniel10.formatter.InfoBagCosmeticFormatter
+import com.bendaniel10.parser.IssueParser
+import com.bendaniel10.parser.PullRequestParser
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -24,6 +26,10 @@ fun main() {
 @OptIn(ExperimentalTime::class)
 object Main : KoinComponent {
     private val fetchSdk: FetchSdkImpl by inject()
+    private val issueParser: IssueParser by inject()
+    private val pullRequestParser: PullRequestParser by inject()
+    private val infoBagCosmeticFormatter: InfoBagCosmeticFormatter by inject()
+
     fun run() {
         measureTime {
             runBlocking {
@@ -33,7 +39,8 @@ object Main : KoinComponent {
                         FetchModule.get(
                             clioParseProjectProperties.githubUsername,
                             clioParseProjectProperties.githubPersonalAccessToken
-                        )
+                        ),
+                        ParseModule.get()
                     )
                 }
 
@@ -43,13 +50,14 @@ object Main : KoinComponent {
                 launch {
                     fetchSdk.response().collect {
                         when (it) {
-                            is FetchSdkResponse.Issue -> CompositeIssueParser.parse(it, infoBag)
+                            is FetchSdkResponse.Issue -> issueParser.parse(it, infoBag)
                             FetchSdkResponse.NoResponse -> {
                                 println("No response")
                             }
 
-                            is FetchSdkResponse.PullRequest -> CompositePullRequestParser.parse(it, infoBag)
+                            is FetchSdkResponse.PullRequest -> pullRequestParser.parse(it, infoBag)
                             FetchSdkResponse.Completed -> {
+                                infoBagCosmeticFormatter.format(infoBag)
                                 with(File("github_report.json")) {
                                     if (exists().not()) {
                                         @Suppress("BlockingMethodInNonBlockingContext") createNewFile()
@@ -64,17 +72,18 @@ object Main : KoinComponent {
                 }
                 launch {
                     fetchSdk.start(
-                        FetchSdkStartParams(
+                        fetchSdkStartParams = FetchSdkStartParams(
                             clioParseProjectProperties.githubOrganization,
                             clioParseProjectProperties.githubRepository,
                             clioParseProjectProperties.analyticsStartDate,
                             clioParseProjectProperties.analyticsEndDate,
-                        )
+                        ),
+                        coroutineScope = this
                     )
                 }
             }
         }.also {
-            println("It took ${it.inWholeMinutes} minutes to run this analysis")
+            println("It took ${it.inWholeMinutes} minutes (${it.inWholeSeconds} seconds) to run this analysis")
         }
     }
 }

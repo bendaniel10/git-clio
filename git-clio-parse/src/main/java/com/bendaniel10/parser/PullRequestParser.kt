@@ -43,7 +43,7 @@ object CompositePullRequestParser : PullRequestParser {
     }
 }
 
-object PullRequestCountParser : PullRequestParser {
+private object PullRequestCountParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val pullRequestCount = infoBag.pullRequestCount ?: PullRequestCount()
@@ -80,7 +80,7 @@ object PullRequestCountParser : PullRequestParser {
     }
 }
 
-object MostActivePullRequestParser : PullRequestParser {
+private object MostActivePullRequestParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val totalExistingComments =
@@ -103,7 +103,7 @@ object MostActivePullRequestParser : PullRequestParser {
     }
 }
 
-object LongestLivedPullRequestParser : PullRequestParser {
+private object LongestLivedPullRequestParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val toCompareCreatedDate = OffsetDateTime.parse(fetchPullRequestByIdResponse.createdAt)
@@ -131,7 +131,7 @@ object LongestLivedPullRequestParser : PullRequestParser {
     }
 }
 
-object NightOwlPullRequestParser : PullRequestParser {
+private object NightOwlPullRequestParser : PullRequestParser {
     private const val NIGHT_OWL_STARTS_AT = 20
 
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
@@ -161,7 +161,7 @@ object NightOwlPullRequestParser : PullRequestParser {
     }
 }
 
-object EarlyWormPullRequestParser : PullRequestParser {
+private object EarlyWormPullRequestParser : PullRequestParser {
     private const val EARLY_WORM_STARTS_AT = 6
 
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
@@ -191,7 +191,7 @@ object EarlyWormPullRequestParser : PullRequestParser {
     }
 }
 
-object WeekendPullRequestParser : PullRequestParser {
+private object WeekendPullRequestParser : PullRequestParser {
     private const val CLOSE_OF_BUSINESS_HOUR = 18
 
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
@@ -217,7 +217,7 @@ object WeekendPullRequestParser : PullRequestParser {
     }
 }
 
-object CleanUpMasterParser : PullRequestParser {
+private object CleanUpMasterParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val cleanUpMaster = infoBag.cleanUpMaster ?: CleanUpMaster()
@@ -237,7 +237,7 @@ object CleanUpMasterParser : PullRequestParser {
     }
 }
 
-object AdditionMasterParser : PullRequestParser {
+private object AdditionMasterParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val additionMaster = infoBag.additionMaster ?: AdditionMaster()
@@ -257,7 +257,7 @@ object AdditionMasterParser : PullRequestParser {
     }
 }
 
-object ReviewerApproverParser : PullRequestParser {
+private object ReviewerApproverParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestReviewResponse = pullRequest.fetchPullRequestReviewResponse
         val reviewerApprover = infoBag.reviewerApprover ?: ReviewerApprover()
@@ -277,7 +277,7 @@ object ReviewerApproverParser : PullRequestParser {
     }
 }
 
-object ReviewerCommentsParser : PullRequestParser {
+private object ReviewerCommentsParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestReviewResponse = pullRequest.fetchPullRequestReviewResponse
         val reviewerCommenter = infoBag.reviewerCommenter ?: ReviewerCommenter()
@@ -297,7 +297,7 @@ object ReviewerCommentsParser : PullRequestParser {
     }
 }
 
-object ReviewPerHourInDayParser : PullRequestParser {
+private object ReviewPerHourInDayParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val reviewPerHourInDay = infoBag.reviewPerHourInDay ?: ReviewPerHourInDay()
         val fetchPullRequestReviewResponse = pullRequest.fetchPullRequestReviewResponse
@@ -317,7 +317,7 @@ object ReviewPerHourInDayParser : PullRequestParser {
     }
 }
 
-object BiggestChangeParser : PullRequestParser {
+private object BiggestChangeParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val existingChangeSum = (infoBag.biggestChange?.changedFiles ?: 0) + (infoBag.biggestChange?.added ?: 0) +
@@ -342,7 +342,7 @@ object BiggestChangeParser : PullRequestParser {
     }
 }
 
-object SmallestChangeParser : PullRequestParser {
+private object SmallestChangeParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val existingChangeSum = (infoBag.smallestChange?.changedFiles ?: 0) + (infoBag.smallestChange?.added ?: 0) +

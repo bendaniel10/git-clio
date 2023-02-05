@@ -23,6 +23,13 @@ object FetchModule {
         singleOf(::FetchSdkImpl) { bind<FetchSdk>() }
         single {
             HttpClient(CIO) {
+                engine {
+                    threadsCount = 10
+                    pipelining = true
+                    endpoint {
+                        pipelineMaxSize = 100
+                    }
+                }
                 install(ContentNegotiation) {
                     json(Json {
                         prettyPrint = true
