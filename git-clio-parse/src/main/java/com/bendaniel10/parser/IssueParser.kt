@@ -4,6 +4,8 @@ import com.bendaniel10.FetchSdkResponse
 import com.bendaniel10.InfoBag
 import com.bendaniel10.IssueStat
 
+private const val DELETED_USER = "deleted.user"
+
 interface IssueParser {
     fun parse(issue: FetchSdkResponse.Issue, infoBag: InfoBag)
 }
@@ -44,8 +46,8 @@ object IssueStatParser : IssueParser {
                 fetchIssueEvent.forEach {
                     if (it.event.equals("closed", true)) {
                         put(
-                            it.actor.login,
-                            getOrDefault(it.actor.login, 0).plus(1)
+                            it.actor?.login ?: DELETED_USER,
+                            getOrDefault(it.actor?.login ?: DELETED_USER, 0).plus(1)
                         )
                     }
                 }

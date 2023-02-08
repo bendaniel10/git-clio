@@ -6,7 +6,7 @@ typealias IssueEventsResponse = List<IssueEventsItem>
 
 @Serializable
 data class IssueEventsItem(
-    val actor: IssueEventsItemActor,
+    val actor: IssueEventsItemActor?,
     val event: String // assigned, renamed, closed (https://docs.github.com/en/developers/webhooks-and-events/events/issue-event-types#closed)
 )
 @Serializable

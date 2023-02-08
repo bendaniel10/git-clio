@@ -75,7 +75,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                     emitIssueResponse(fetchSdkStartParams, issue)
                 }
             }.awaitAll()
-
+            delay(LARGE_DELAY)
 
             val totalPages = ceil(issues.totalCount.toFloat() / 100f).toInt()
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
@@ -85,6 +85,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                             emitIssueResponse(fetchSdkStartParams, issue)
                         }
                     }.awaitAll()
+                    delay(LARGE_DELAY)
                 }
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
@@ -114,6 +115,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 }
 
             }.awaitAll()
+            delay(LARGE_DELAY)
 
             val totalPages = ceil(pullRequests.totalCount.toFloat() / 100f).toInt()
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
@@ -123,6 +125,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                             emitPullRequestResponse(fetchSdkStartParams, pr)
                         }
                     }.awaitAll()
+                    delay(LARGE_DELAY)
                 }
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
@@ -169,7 +172,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 page
             )
         }.getOrElse {
-            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds.")
+            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
             delay(MODERATE_DELAY)
             fetchIssues(fetchSdkStartParams, page)
         }
@@ -184,7 +187,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             id
         )
     }.getOrElse {
-        System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds.")
+        System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
         delay(MODERATE_DELAY)
         fetchPullRequestReviewsById(fetchSdkStartParams, id)
     }
@@ -199,7 +202,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             id
         )
     }.getOrElse {
-        System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds.")
+        System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
         delay(MODERATE_DELAY)
         fetchPullRequestById(fetchSdkStartParams, id)
     }
@@ -217,7 +220,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 page
             )
         }.getOrElse {
-            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds.")
+            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
             delay(MODERATE_DELAY)
             fetchPullRequests(fetchSdkStartParams, page)
         }
@@ -233,7 +236,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 issueNumber
             )
         }.getOrElse {
-            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds.")
+            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
             delay(MODERATE_DELAY)
             fetchIssueEvent(fetchSdkStartParams, issueNumber)
         }
@@ -242,4 +245,5 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
 }
 
 const val MODERATE_DELAY = 2_500L
+const val LARGE_DELAY = 7_500L
 const val MAX_GITHUB_SEARCH_FETCH_PAGE = 10
