@@ -26,7 +26,7 @@ object FetchModule {
                 engine {
                     pipelining = true
                     endpoint {
-                        pipelineMaxSize = 100
+                        pipelineMaxSize = 25
                     }
                 }
                 install(ContentNegotiation) {

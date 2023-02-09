@@ -35,9 +35,9 @@ object Main : KoinComponent {
     private var expectedTotalIssues = 0
 
     fun run() {
+        val clioParseProjectProperties = ClioParseProjectProperties.fromPropertiesFile(File("local.properties"))
         measureTime {
             runBlocking {
-                val clioParseProjectProperties = ClioParseProjectProperties.fromPropertiesFile(File("local.properties"))
                 startKoin {
                     modules(
                         FetchModule.get(
@@ -97,6 +97,7 @@ object Main : KoinComponent {
                 }
             }
         }.also {
+            println("Analysis for ${clioParseProjectProperties.githubOrganization}/${clioParseProjectProperties.githubRepository} [${clioParseProjectProperties.analyticsStartDate} - ${clioParseProjectProperties.analyticsEndDate}")
             println("It took ${it.inWholeMinutes} minutes (${it.inWholeSeconds} seconds) to run this analysis")
         }
     }

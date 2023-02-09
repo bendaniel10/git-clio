@@ -33,7 +33,7 @@ data class PullRequestCount(
 data class MostActivePullRequest(
     val reviewComments: Int = 0,
     val comments: Int = 0,
-    val pullRequest: PullRequest
+    val pullRequest: PullRequest,
 )
 
 @Serializable
@@ -42,7 +42,8 @@ data class PullRequest(
     val url: String,
     val title: String,
     val createdDate: String, // "2023-01-26T13:38:00Z"
-    val closedDate: String? // "2023-01-26T13:38:00Z"
+    val closedDate: String?, // "2023-01-26T13:38:00Z"
+    val daysAlive: Long
 )
 
 @Serializable
