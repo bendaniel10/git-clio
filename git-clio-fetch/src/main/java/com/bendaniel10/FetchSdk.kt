@@ -245,5 +245,5 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
 }
 
 const val MODERATE_DELAY = 2_500L
-const val LARGE_DELAY = 15_000L
+const val LARGE_DELAY = 7_000L
 const val MAX_GITHUB_SEARCH_FETCH_PAGE = 10

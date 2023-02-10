@@ -25,8 +25,10 @@ object FetchModule {
             HttpClient(CIO) {
                 engine {
                     pipelining = true
+                    threadsCount = 10
                     endpoint {
-                        pipelineMaxSize = 25
+                        pipelineMaxSize = 100
+                        connectTimeout = 10_000
                     }
                 }
                 install(ContentNegotiation) {
