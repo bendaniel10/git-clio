@@ -4,21 +4,22 @@ import com.bendaniel10.model.*
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import kotlinx.datetime.LocalDate
 
 internal interface FetchRestApi {
     suspend fun fetchIssues(
         githubOrganization: String,
         githubRepository: String,
-        analyticsStartDate: String,
-        analyticsEndDate: String,
+        analyticsStartDate: LocalDate,
+        analyticsEndDate: LocalDate,
         page: Int
     ): FetchIssuesResponse
 
     suspend fun fetchPullRequests(
         githubOrganization: String,
         githubRepository: String,
-        analyticsStartDate: String,
-        analyticsEndDate: String,
+        analyticsStartDate: LocalDate,
+        analyticsEndDate: LocalDate,
         page: Int
     ): FetchPullRequestResponse
 
@@ -45,8 +46,8 @@ internal class FetchRestApiImpl(private val httpClient: HttpClient) : FetchRestA
     override suspend fun fetchIssues(
         githubOrganization: String,
         githubRepository: String,
-        analyticsStartDate: String,
-        analyticsEndDate: String,
+        analyticsStartDate: LocalDate,
+        analyticsEndDate: LocalDate,
         page: Int
     ): FetchIssuesResponse =
         httpClient.get("https://api.github.com/search/issues?sort=created&order=asc&page=$page&per_page=$MAX_ITEMS_PER_PAGE&q=repo:$githubOrganization/$githubRepository+is:issue+created:$analyticsStartDate..$analyticsEndDate")
@@ -55,8 +56,8 @@ internal class FetchRestApiImpl(private val httpClient: HttpClient) : FetchRestA
     override suspend fun fetchPullRequests(
         githubOrganization: String,
         githubRepository: String,
-        analyticsStartDate: String,
-        analyticsEndDate: String,
+        analyticsStartDate: LocalDate,
+        analyticsEndDate: LocalDate,
         page: Int
     ): FetchPullRequestResponse =
         httpClient.get("https://api.github.com/search/issues?sort=created&order=asc&page=$page&per_page=$MAX_ITEMS_PER_PAGE&q=repo:$githubOrganization/$githubRepository+is:pr+created:$analyticsStartDate..$analyticsEndDate")

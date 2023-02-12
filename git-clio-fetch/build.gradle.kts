@@ -21,4 +21,5 @@ dependencies {
     implementation(Dependencies.koinKtor)
     implementation(Dependencies.koinKtorSl4jLogger)
     implementation(Dependencies.sl4jSimple)
+    implementation(Dependencies.kotlinXDateTime)
 }

@@ -1,12 +1,14 @@
 package com.bendaniel10.parser
 
 import com.bendaniel10.*
-import java.time.DayOfWeek
-import java.time.Duration
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDateTime
+import java.time.format.TextStyle
+import java.util.*
 
 private const val DELETED_USER = "deleted.user"
+private val instantWhenNull = Clock.System.now()
 
 interface PullRequestParser {
     fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag)
@@ -20,7 +22,7 @@ object CompositePullRequestParser : PullRequestParser {
         MostActivePullRequestParser,
         LongestLivedPullRequestParser,
         NightOwlPullRequestParser,
-        EarlyWormPullRequestParser,
+        EarlyBirdPullRequestParser,
         WeekendPullRequestParser,
         CleanUpMasterParser,
         AdditionMasterParser,
@@ -64,8 +66,10 @@ private object PullRequestCountParser : PullRequestParser {
         } else {
             pullRequestCount.autoMerged
         }
-        val createdMonth = fetchPullRequestByIdResponse.createdAt.toLocalDateTime()
-            .format(DateTimeFormatter.ofPattern("MMMM"))
+        val createdMonth = fetchPullRequestByIdResponse.createdAt.toLocalDateTime().month.getDisplayName(
+            TextStyle.FULL,
+            Locale.getDefault()
+        )
         val updatedTotalPerMonth = pullRequestCount.totalPerMonth.apply {
             put(createdMonth, getOrDefault(createdMonth, 0).plus(1))
         }
@@ -95,12 +99,12 @@ private object MostActivePullRequestParser : PullRequestParser {
                     pullRequest.fetchPullRequestItem.user.login,
                     pullRequest.fetchPullRequestByIdResponse.htmlUrl,
                     pullRequest.fetchPullRequestItem.title,
-                    fetchPullRequestByIdResponse.createdAt,
-                    fetchPullRequestByIdResponse.closedAt,
-                    Duration.between(
-                        fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
-                        (fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()) ?: LocalDateTime.MAX
-                    ).toDays()
+                    fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
+                    fetchPullRequestByIdResponse.closedAt?.toLocalDateTime(),
+                    DaysBetween.twoInstants(
+                        fetchPullRequestByIdResponse.createdAt,
+                        fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+                    )
                 )
             )
         }
@@ -110,26 +114,26 @@ private object MostActivePullRequestParser : PullRequestParser {
 private object LongestLivedPullRequestParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
-        val toCompareCreatedDate = fetchPullRequestByIdResponse.createdAt.toLocalDateTime()
-        val toCompareClosedDate =
-            if (fetchPullRequestByIdResponse.closedAt == null) LocalDateTime.MAX else fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()
-        val toCompareHoursBetween = Duration.between(toCompareCreatedDate, toCompareClosedDate).toHours()
-        val existingHoursBetween = if (infoBag.longestLivedPullRequest == null) 0 else Duration.between(
-            infoBag.longestLivedPullRequest!!.createdDate.toLocalDateTime(),
-            if (infoBag.longestLivedPullRequest!!.closedDate == null) LocalDateTime.MAX else infoBag.longestLivedPullRequest!!.closedDate?.toLocalDateTime()
-        ).toHours()
+        val toCompareHoursBetween = HoursBetween.twoInstants(
+            fetchPullRequestByIdResponse.createdAt,
+            fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+        )
+        val existingHoursBetween = if (infoBag.longestLivedPullRequest == null) 0 else HoursBetween.twoLocalDateTime(
+            infoBag.longestLivedPullRequest!!.createdDate,
+            if (infoBag.longestLivedPullRequest!!.closedDate == null) instantWhenNull.toLocalDateTime() else infoBag.longestLivedPullRequest!!.closedDate!!
+        )
 
         if (toCompareHoursBetween > existingHoursBetween) {
             infoBag.longestLivedPullRequest = PullRequest(
                 pullRequest.fetchPullRequestItem.user.login,
                 pullRequest.fetchPullRequestByIdResponse.htmlUrl,
                 pullRequest.fetchPullRequestItem.title,
-                fetchPullRequestByIdResponse.createdAt,
-                fetchPullRequestByIdResponse.closedAt,
-                daysAlive = Duration.between(
-                    fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
-                    (fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()) ?: LocalDateTime.MAX
-                ).toDays()
+                fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
+                fetchPullRequestByIdResponse.closedAt?.toLocalDateTime(),
+                DaysBetween.twoInstants(
+                    fetchPullRequestByIdResponse.createdAt,
+                    fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+                )
             )
         }
     }
@@ -141,7 +145,7 @@ private object NightOwlPullRequestParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val toCompareCreatedHour = fetchPullRequestByIdResponse.createdAt.toLocalDateTime().hour
-        val existingLatestHour = infoBag.nightOwlPullRequest?.latestPullRequest?.createdDate?.toLocalDateTime()?.hour
+        val existingLatestHour = infoBag.nightOwlPullRequest?.latestPullRequest?.createdDate?.hour
         val existingTotal = infoBag.nightOwlPullRequest?.total ?: 0
         if (toCompareCreatedHour >= NIGHT_OWL_STARTS_AT) {
             val newLatestPullRequest = if (existingLatestHour == null || existingLatestHour < toCompareCreatedHour) {
@@ -149,12 +153,12 @@ private object NightOwlPullRequestParser : PullRequestParser {
                     pullRequest.fetchPullRequestItem.user.login,
                     pullRequest.fetchPullRequestByIdResponse.htmlUrl,
                     pullRequest.fetchPullRequestItem.title,
-                    fetchPullRequestByIdResponse.createdAt,
-                    fetchPullRequestByIdResponse.closedAt,
-                    Duration.between(
-                        fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
-                        (fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()) ?: LocalDateTime.MAX
-                    ).toDays()
+                    fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
+                    fetchPullRequestByIdResponse.closedAt?.toLocalDateTime(),
+                    DaysBetween.twoInstants(
+                        fetchPullRequestByIdResponse.createdAt,
+                        fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+                    )
                 )
             } else {
                 infoBag.nightOwlPullRequest!!.latestPullRequest
@@ -167,31 +171,31 @@ private object NightOwlPullRequestParser : PullRequestParser {
     }
 }
 
-private object EarlyWormPullRequestParser : PullRequestParser {
+private object EarlyBirdPullRequestParser : PullRequestParser {
     private const val EARLY_WORM_STARTS_AT = 6
 
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
         val toCompareCreatedHour = fetchPullRequestByIdResponse.createdAt.toLocalDateTime().hour
-        val existingEarliestHour = infoBag.earlyWormPullRequest?.earliest?.createdDate?.toLocalDateTime()?.hour
-        val existingTotal = infoBag.earlyWormPullRequest?.total ?: 0
+        val existingEarliestHour = infoBag.earlyBirdPullRequest?.earliest?.createdDate?.hour
+        val existingTotal = infoBag.earlyBirdPullRequest?.total ?: 0
         if (toCompareCreatedHour <= EARLY_WORM_STARTS_AT) {
             val newEarliest = if (existingEarliestHour == null || toCompareCreatedHour < existingEarliestHour) {
                 PullRequest(
                     pullRequest.fetchPullRequestItem.user.login,
                     pullRequest.fetchPullRequestByIdResponse.htmlUrl,
                     pullRequest.fetchPullRequestItem.title,
-                    fetchPullRequestByIdResponse.createdAt,
-                    fetchPullRequestByIdResponse.closedAt,
-                    Duration.between(
-                        fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
-                        (fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()) ?: LocalDateTime.MAX
-                    ).toDays()
+                    fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
+                    fetchPullRequestByIdResponse.closedAt?.toLocalDateTime(),
+                    DaysBetween.twoInstants(
+                        fetchPullRequestByIdResponse.createdAt,
+                        fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+                    )
                 )
             } else {
-                infoBag.earlyWormPullRequest!!.earliest
+                infoBag.earlyBirdPullRequest!!.earliest
             }
-            infoBag.earlyWormPullRequest = EarlyWormPullRequest(
+            infoBag.earlyBirdPullRequest = EarlyBirdPullRequest(
                 total = existingTotal.plus(1),
                 earliest = newEarliest
             )
@@ -339,12 +343,12 @@ private object BiggestChangeParser : PullRequestParser {
                     pullRequest.fetchPullRequestItem.user.login,
                     pullRequest.fetchPullRequestByIdResponse.htmlUrl,
                     pullRequest.fetchPullRequestItem.title,
-                    fetchPullRequestByIdResponse.createdAt,
-                    fetchPullRequestByIdResponse.closedAt,
-                    Duration.between(
-                        fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
-                        (fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()) ?: LocalDateTime.MAX
-                    ).toDays()
+                    fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
+                    fetchPullRequestByIdResponse.closedAt?.toLocalDateTime(),
+                    DaysBetween.twoInstants(
+                        fetchPullRequestByIdResponse.createdAt,
+                        fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+                    )
                 ),
                 added = fetchPullRequestByIdResponse.additions,
                 removed = fetchPullRequestByIdResponse.deletions,
@@ -368,12 +372,12 @@ private object SmallestChangeParser : PullRequestParser {
                     pullRequest.fetchPullRequestItem.user.login,
                     pullRequest.fetchPullRequestByIdResponse.htmlUrl,
                     pullRequest.fetchPullRequestItem.title,
-                    fetchPullRequestByIdResponse.createdAt,
-                    fetchPullRequestByIdResponse.closedAt,
-                    Duration.between(
-                        fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
-                        (fetchPullRequestByIdResponse.closedAt?.toLocalDateTime()) ?: LocalDateTime.MAX
-                    ).toDays()
+                    fetchPullRequestByIdResponse.createdAt.toLocalDateTime(),
+                    fetchPullRequestByIdResponse.closedAt?.toLocalDateTime(),
+                    DaysBetween.twoInstants(
+                        fetchPullRequestByIdResponse.createdAt,
+                        fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+                    )
                 ),
                 added = fetchPullRequestByIdResponse.additions,
                 removed = fetchPullRequestByIdResponse.deletions,

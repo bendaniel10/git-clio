@@ -1,5 +1,6 @@
 package com.bendaniel10.model
 
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,9 +19,9 @@ data class FetchPullRequestItem(
     val number: Int,
     val state: String,
     @SerialName("created_at")
-    val createdAt: String,
+    val createdAt: Instant,
     @SerialName("closed_at")
-    val closedAt: String?
+    val closedAt: Instant?
 )
 
 @Serializable

@@ -15,4 +15,5 @@ dependencies {
     implementation(project(":git-clio-fetch"))
     implementation(Dependencies.koinCore)
     implementation(Dependencies.ktorKotlinxSerialization)
+    implementation(Dependencies.kotlinXDateTime)
 }

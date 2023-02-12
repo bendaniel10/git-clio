@@ -8,6 +8,8 @@ import com.bendaniel10.parser.PullRequestParser
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.toLocalDate
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
@@ -108,8 +110,8 @@ data class ClioParseProjectProperties(
     val githubPersonalAccessToken: String,
     val githubOrganization: String,
     val githubRepository: String,
-    val analyticsStartDate: String,
-    val analyticsEndDate: String
+    val analyticsStartDate: LocalDate,
+    val analyticsEndDate: LocalDate
 ) {
     companion object {
         fun fromPropertiesFile(propertiesFile: File) = with(propertiesFile) {
@@ -120,8 +122,8 @@ data class ClioParseProjectProperties(
                 properties.getProperty("githubPersonalAccessToken"),
                 properties.getProperty("githubOrganization"),
                 properties.getProperty("githubRepository"),
-                properties.getProperty("analyticsStartDate"),
-                properties.getProperty("analyticsEndDate"),
+                properties.getProperty("analyticsStartDate").toLocalDate(),
+                properties.getProperty("analyticsEndDate").toLocalDate(),
             )
         }
     }

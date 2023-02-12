@@ -5,17 +5,19 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.lang.Integer.min
-import java.time.OffsetDateTime
 import kotlin.math.ceil
 
 data class FetchSdkStartParams(
     val githubOrganization: String,
     val githubRepository: String,
-    val analyticsStartDate: String,
-    val analyticsEndDate: String
+    val analyticsStartDate: LocalDate,
+    val analyticsEndDate: LocalDate
 )
 
 sealed class FetchSdkResponse {
@@ -90,10 +92,10 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
                 val newAnalyticsStartDate = fetchIssues(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
-                    .items.sortedBy { OffsetDateTime.parse(it.createdAt) }.last().createdAt
+                    .items.maxByOrNull { it.createdAt }!!.createdAt
                 println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processIssues(
-                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate),
+                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate.toLocalDateTime(TimeZone.UTC).date),
                     coroutineScope
                 )
             }
@@ -130,10 +132,10 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
                 val newAnalyticsStartDate = fetchPullRequests(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
-                    .items.sortedBy { OffsetDateTime.parse(it.createdAt) }.last().createdAt
+                    .items.maxByOrNull { it.createdAt }!!.createdAt
                 println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processPullRequests(
-                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate),
+                    fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate.toLocalDateTime(TimeZone.UTC).date),
                     coroutineScope
                 )
             }

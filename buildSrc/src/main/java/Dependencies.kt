@@ -9,4 +9,5 @@ object Dependencies {
     const val koinKtor = "io.insert-koin:koin-ktor:${Versions.koinKtor}"
     const val koinKtorSl4jLogger = "io.insert-koin:koin-logger-slf4j:${Versions.koinKtor}"
     const val sl4jSimple = "org.slf4j:slf4j-simple:${Versions.sl4jSimple}"
+    const val kotlinXDateTime = "org.jetbrains.kotlinx:kotlinx-datetime:${Versions.kotlinXDateTime}"
 }

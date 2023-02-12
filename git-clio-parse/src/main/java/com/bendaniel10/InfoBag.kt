@@ -1,5 +1,6 @@
 package com.bendaniel10
 
+import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -8,7 +9,7 @@ data class InfoBag(
     var mostActivePullRequest: MostActivePullRequest? = null,
     var longestLivedPullRequest: PullRequest? = null,
     var nightOwlPullRequest: NightOwlPullRequest? = null,
-    var earlyWormPullRequest: EarlyWormPullRequest? = null,
+    var earlyBirdPullRequest: EarlyBirdPullRequest? = null,
     var weekendPullRequest: WeekendPullRequest? = null,
     var cleanUpMaster: CleanUpMaster? = null,
     var additionMaster: AdditionMaster? = null,
@@ -41,9 +42,9 @@ data class PullRequest(
     val author: String,
     val url: String,
     val title: String,
-    val createdDate: String, // "2023-01-26T13:38:00Z"
-    val closedDate: String?, // "2023-01-26T13:38:00Z"
-    val daysAlive: Long
+    val createdDate: LocalDateTime, // "2023-01-26T13:38:00Z"
+    val closedDate: LocalDateTime?, // "2023-01-26T13:38:00Z"
+    val daysAlive: Int
 )
 
 @Serializable
@@ -53,7 +54,7 @@ data class NightOwlPullRequest(
 )
 
 @Serializable
-data class EarlyWormPullRequest(
+data class EarlyBirdPullRequest(
     val earliest: PullRequest,
     val total: Int = 0
 )
