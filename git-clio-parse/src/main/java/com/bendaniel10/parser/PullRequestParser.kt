@@ -275,6 +275,12 @@ private object ReviewerApproverParser : PullRequestParser {
         val reviewerApprover = infoBag.reviewerApprover ?: ReviewerApprover()
 
         infoBag.reviewerApprover = reviewerApprover.copy(
+            total = reviewerApprover.total.plus(fetchPullRequestReviewResponse.filter {
+                it.state.equals(
+                    "APPROVED",
+                    true
+                )
+            }.size),
             reviewers = reviewerApprover.reviewers.apply {
                 fetchPullRequestReviewResponse.forEach {
                     if (it.state.equals("APPROVED", true)) {
@@ -295,6 +301,12 @@ private object ReviewerCommentsParser : PullRequestParser {
         val reviewerCommenter = infoBag.reviewerCommenter ?: ReviewerCommenter()
 
         infoBag.reviewerCommenter = reviewerCommenter.copy(
+            total = reviewerCommenter.total.plus(fetchPullRequestReviewResponse.filter {
+                it.state.equals(
+                    "COMMENTED",
+                    true
+                )
+            }.size),
             commenter = reviewerCommenter.commenter.apply {
                 fetchPullRequestReviewResponse.forEach {
                     if (it.state.equals("COMMENTED", true)) {

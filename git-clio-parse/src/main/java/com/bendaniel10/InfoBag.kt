@@ -79,18 +79,26 @@ data class AdditionMaster(
 
 @Serializable
 data class ReviewerApprover(
+    val total: Int = 0,
     val reviewers: MutableMap<String, Int> = mutableMapOf() // author, totalNumber
 )
 
 @Serializable
 data class ReviewerCommenter(
+    val total: Int = 0,
     val commenter: MutableMap<String, Int> = mutableMapOf() // author, totalNumber
 )
 
 @Serializable
 data class ReviewPerHourInDay(
-    val reviewers: MutableMap<Int, Int> = mutableMapOf() // hour, number
+    val reviewers: MutableMap<Int, Int> = defaultHourTotalNumberMap() // hour, number
 )
+
+private fun defaultHourTotalNumberMap() = mutableMapOf<Int, Int>().apply {
+    for (i in 0..23) {
+        put(i, 0)
+    }
+}
 
 @Serializable
 data class PullRequestChange(
