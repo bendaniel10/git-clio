@@ -9,7 +9,10 @@ internal object PullRequestInfoBagCosmeticFormatter : InfoBagCosmeticFormatter {
             pullRequestCount = pullRequestCount?.copy(
                 totalPerMonth = pullRequestCount?.totalPerMonth?.toSortedMap { key1, key2 ->
                     SimpleDateFormat("MMMM").parse(key1).compareTo(SimpleDateFormat("MMMM").parse(key2))
-                } ?: mutableMapOf()
+                } ?: mutableMapOf(),
+                totalPerUser = pullRequestCount?.totalPerUser?.toList()?.sortedByDescending { (_, value) -> value }
+                    ?.toMap()
+                    ?.toMutableMap() ?: mutableMapOf()
             )
 
             weekendPullRequest = weekendPullRequest?.copy(

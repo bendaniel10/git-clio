@@ -27,13 +27,16 @@ data class PullRequestCount(
     val merged: Int = 0,
     val closed: Int = 0,
     val autoMerged: Int = 0,
-    val totalPerMonth: MutableMap<String, Int> = mutableMapOf() // month, totalNumber
+    val averageHoursToMerge: Double = 0.0,
+    val totalPerMonth: MutableMap<String, Int> = mutableMapOf(), // month, totalNumber
+    val totalPerUser: MutableMap<String, Int> = mutableMapOf(), // user, totalNumber
 )
 
 @Serializable
 data class MostActivePullRequest(
     val reviewComments: Int = 0,
     val comments: Int = 0,
+    val averageCommentsPerPr: Double = 0.0, // review comments + comments bundled together
     val pullRequest: PullRequest,
 )
 

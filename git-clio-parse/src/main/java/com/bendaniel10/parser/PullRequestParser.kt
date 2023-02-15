@@ -48,12 +48,22 @@ object CompositePullRequestParser : PullRequestParser {
 private object PullRequestCountParser : PullRequestParser {
     override fun parse(pullRequest: FetchSdkResponse.PullRequest, infoBag: InfoBag) {
         val fetchPullRequestByIdResponse = pullRequest.fetchPullRequestByIdResponse
+        val fetchPullRequestItem = pullRequest.fetchPullRequestItem
         val pullRequestCount = infoBag.pullRequestCount ?: PullRequestCount()
         val newTotal = pullRequestCount.total.plus(1)
-        val newMerged = if (fetchPullRequestByIdResponse.mergedAt != null) {
-            pullRequestCount.merged.plus(1)
+        val (newMerged, newAverageHoursToMerge) = if (fetchPullRequestByIdResponse.mergedAt != null) {
+            pullRequestCount.merged.plus(1) to HoursBetween.twoInstants(
+                fetchPullRequestByIdResponse.createdAt,
+                fetchPullRequestByIdResponse.closedAt ?: instantWhenNull
+            ).let { newAverageToAdd ->
+                rollingAverage(
+                    pullRequestCount.averageHoursToMerge,
+                    pullRequestCount.merged,
+                    newAverageToAdd.toInt()
+                )
+            }
         } else {
-            pullRequestCount.merged
+            pullRequestCount.merged to pullRequestCount.averageHoursToMerge
         }
         val newClosed =
             if (fetchPullRequestByIdResponse.mergedAt == null && fetchPullRequestByIdResponse.closedAt != null) {
@@ -74,12 +84,21 @@ private object PullRequestCountParser : PullRequestParser {
             put(createdMonth, getOrDefault(createdMonth, 0).plus(1))
         }
 
+        val updatedTotalPerUser = pullRequestCount.totalPerUser.apply {
+            put(
+                fetchPullRequestItem.user.login,
+                getOrDefault(pullRequest.fetchPullRequestItem.user.login, 0).plus(1)
+            )
+        }
+
         infoBag.pullRequestCount = pullRequestCount.copy(
             total = newTotal,
             merged = newMerged,
             closed = newClosed,
             autoMerged = newAutoMerged,
-            totalPerMonth = updatedTotalPerMonth
+            averageHoursToMerge = newAverageHoursToMerge,
+            totalPerMonth = updatedTotalPerMonth,
+            totalPerUser = updatedTotalPerUser
         )
     }
 }
@@ -95,6 +114,12 @@ private object MostActivePullRequestParser : PullRequestParser {
             infoBag.mostActivePullRequest = MostActivePullRequest(
                 reviewComments = fetchPullRequestByIdResponse.reviewComments,
                 comments = fetchPullRequestByIdResponse.comments,
+                averageCommentsPerPr = rollingAverage(
+                    infoBag.mostActivePullRequest?.averageCommentsPerPr ?: 0.0,
+                    infoBag.pullRequestCount?.total
+                        ?: 0, // the relies on pullrequest count being called first on the chain of responsibility :o
+                    toCompareTotalComments
+                ),
                 pullRequest = PullRequest(
                     pullRequest.fetchPullRequestItem.user.login,
                     pullRequest.fetchPullRequestByIdResponse.htmlUrl,
