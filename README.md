@@ -8,7 +8,7 @@ Define a `local.properties` file in the root of the project containing these pro
 
 ```properties
 githubUsername=<username>
-githubPersonalAccessToken=<token_with_correct_read_scopes>
+githubPersonalAccessToken=<token_with_correct_read_scopes> // read:org, read:user, read:project & repo
 githubOrganization=<org_where_the_repo_resides>
 githubRepository=<repo_to_analyze>
 analyticsStartDate=<analytics_start_date> //yyyy-mm-dd
