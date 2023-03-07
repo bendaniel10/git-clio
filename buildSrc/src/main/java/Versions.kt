@@ -6,4 +6,5 @@ object Versions {
     const val koinKtor: String = "3.3.0"
     const val sl4jSimple: String = "2.0.6"
     const val kotlinXDateTime: String = "0.4.0"
+    const val shadowJarVersion: String = "8.1.0"
 }
