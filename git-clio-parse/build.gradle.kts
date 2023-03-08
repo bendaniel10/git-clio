@@ -16,4 +16,9 @@ dependencies {
     implementation(Dependencies.koinCore)
     implementation(Dependencies.ktorKotlinxSerialization)
     implementation(Dependencies.kotlinXDateTime)
+    implementation(Dependencies.exposedCore)
+    implementation(Dependencies.exposedDao)
+    implementation(Dependencies.exposedJdbc)
+    implementation(Dependencies.exposedJavaTime)
+    implementation(Dependencies.postgresql)
 }

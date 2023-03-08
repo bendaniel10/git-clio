@@ -24,4 +24,5 @@ tasks {
 
 dependencies {
     implementation(Dependencies.koinCore)
+    implementation(project(":git-clio-parse"))
 }

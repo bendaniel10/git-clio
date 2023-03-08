@@ -7,4 +7,6 @@ object Versions {
     const val sl4jSimple: String = "2.0.6"
     const val kotlinXDateTime: String = "0.4.0"
     const val shadowJarVersion: String = "8.1.0"
+    const val exposedVersion: String = "0.40.1"
+    const val postgresqlVersion: String = "42.5.4"
 }

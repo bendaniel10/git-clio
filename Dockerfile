@@ -8,5 +8,6 @@ FROM openjdk:11-jre-slim
 RUN mkdir /app
 
 COPY --from=build /home/gradle/src/git-clio-app/build/libs/ /app/
+COPY --from=build /home/gradle/src/local.properties .
 
 ENTRYPOINT ["java","-jar","/app/gitclio.jar"]

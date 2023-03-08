@@ -10,4 +10,9 @@ object Dependencies {
     const val koinKtorSl4jLogger = "io.insert-koin:koin-logger-slf4j:${Versions.koinKtor}"
     const val sl4jSimple = "org.slf4j:slf4j-simple:${Versions.sl4jSimple}"
     const val kotlinXDateTime = "org.jetbrains.kotlinx:kotlinx-datetime:${Versions.kotlinXDateTime}"
+    const val exposedCore = "org.jetbrains.exposed:exposed-core:${Versions.exposedVersion}"
+    const val exposedDao = "org.jetbrains.exposed:exposed-dao:${Versions.exposedVersion}"
+    const val exposedJdbc = "org.jetbrains.exposed:exposed-jdbc:${Versions.exposedVersion}"
+    const val exposedJavaTime = "org.jetbrains.exposed:exposed-java-time:${Versions.exposedVersion}"
+    const val postgresql = "org.postgresql:postgresql:${Versions.postgresqlVersion}"
 }
