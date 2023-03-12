@@ -10,6 +10,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.slf4j.LoggerFactory
 import java.lang.Integer.min
 import kotlin.math.ceil
 
@@ -17,7 +18,9 @@ data class FetchSdkStartParams(
     val githubOrganization: String,
     val githubRepository: String,
     val analyticsStartDate: LocalDate,
-    val analyticsEndDate: LocalDate
+    val analyticsEndDate: LocalDate,
+    val githubUsername: String,
+    val githubPersonalAccessToken: String,
 )
 
 sealed class FetchSdkResponse {
@@ -35,31 +38,70 @@ sealed class FetchSdkResponse {
 }
 
 interface FetchSdk {
-    suspend fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope)
+    fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope)
     fun response(): Flow<FetchSdkResponse>
 }
 
 class FetchSdkImpl : FetchSdk, KoinComponent {
+    private val logger = LoggerFactory.getLogger(FetchSdkImpl::class.java)
     private val fetchRestApi: FetchRestApi by inject()
     private val response = MutableSharedFlow<FetchSdkResponse>(replay = 0, extraBufferCapacity = Channel.UNLIMITED)
-    override suspend fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
+    override fun start(fetchSdkStartParams: FetchSdkStartParams, coroutineScope: CoroutineScope) {
         try {
-            listOf(
-                // Emit pull requests
-                coroutineScope.launch {
-                    processPullRequests(
-                        fetchSdkStartParams,
-                        coroutineScope,
-                        emitTotalCount = true
-                    )
-                },
-                // Emit issues
-                coroutineScope.launch { processIssues(fetchSdkStartParams, coroutineScope, emitTotalCount = true) }
-            ).joinAll()
-            // Done
-            response.emit(FetchSdkResponse.Completed)
+            // Check for when issues and prs are completed
+            coroutineScope.launch {
+                var expectedTotalIssues: Int? = null
+                var expectedTotalPrs: Int? = null
+                val processedIds = mutableSetOf<Int>()
+
+                response.collect {
+                    when (it) {
+                        FetchSdkResponse.Completed -> cancel()
+                        is FetchSdkResponse.ExpectedIssuesTotal -> expectedTotalIssues = it.expected
+                        is FetchSdkResponse.ExpectedPullRequestTotal -> expectedTotalPrs = it.expected
+                        is FetchSdkResponse.Issue -> {
+                            processedIds.add(it.fetchIssuesItem.number)
+                            notifyIfCompleted((expectedTotalIssues ?: 0) + (expectedTotalPrs ?: 0), processedIds.size)
+                        }
+
+                        is FetchSdkResponse.PullRequest -> {
+                            processedIds.add(it.fetchPullRequestItem.number)
+                            notifyIfCompleted((expectedTotalIssues ?: 0) + (expectedTotalPrs ?: 0), processedIds.size)
+                        }
+                    }
+                    if (expectedTotalIssues == 0 && expectedTotalPrs == 0) {
+                        notifyIfCompleted(0, processedIds.size)
+                    }
+                }
+            }
+
+            // Emit pull requests
+            coroutineScope.launch {
+                logger.info("Starting to process pull requests")
+                processPullRequests(
+                    fetchSdkStartParams,
+                    coroutineScope,
+                    emitTotalCount = true
+                )
+            }
+
+            coroutineScope.launch {
+                logger.info("Starting to process issues")
+                processIssues(
+                    fetchSdkStartParams,
+                    coroutineScope,
+                    emitTotalCount = true
+                )
+            }
         } catch (ex: Exception) {
-            ex.printStackTrace()
+            logger.error("Error while starting the FetchSdk", ex)
+        }
+    }
+
+    private suspend fun notifyIfCompleted(total: Int, expected: Int) {
+        if (total == expected) {
+            logger.info("Processing completed")
+            response.emit(FetchSdkResponse.Completed)
         }
     }
 
@@ -67,7 +109,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         fetchSdkStartParams: FetchSdkStartParams,
         coroutineScope: CoroutineScope,
         emitTotalCount: Boolean = false
-    ) {
+    ): Unit = withContext(Dispatchers.IO) {
         fetchIssues(fetchSdkStartParams, 1).also { issues ->
             if (emitTotalCount) {
                 response.emit(FetchSdkResponse.ExpectedIssuesTotal(issues.totalCount))
@@ -93,7 +135,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
                 val newAnalyticsStartDate = fetchIssues(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
                     .items.maxByOrNull { it.createdAt }!!.createdAt
-                println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
+                logger.info("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processIssues(
                     fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate.toLocalDateTime(TimeZone.UTC).date),
                     coroutineScope
@@ -106,7 +148,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         fetchSdkStartParams: FetchSdkStartParams,
         coroutineScope: CoroutineScope,
         emitTotalCount: Boolean = false
-    ) {
+    ): Unit = withContext(Dispatchers.IO) {
         fetchPullRequests(fetchSdkStartParams, 1).also { pullRequests ->
             if (emitTotalCount) {
                 response.emit(FetchSdkResponse.ExpectedPullRequestTotal(pullRequests.totalCount))
@@ -133,7 +175,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
                 val newAnalyticsStartDate = fetchPullRequests(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
                     .items.maxByOrNull { it.createdAt }!!.createdAt
-                println("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
+                logger.info("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processPullRequests(
                     fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate.toLocalDateTime(TimeZone.UTC).date),
                     coroutineScope
@@ -171,10 +213,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 fetchSdkStartParams.githubRepository,
                 fetchSdkStartParams.analyticsStartDate,
                 fetchSdkStartParams.analyticsEndDate,
+                fetchSdkStartParams.githubUsername,
+                fetchSdkStartParams.githubPersonalAccessToken,
                 page
             )
         }.getOrElse {
-            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
+            logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
             delay(MODERATE_DELAY)
             fetchIssues(fetchSdkStartParams, page)
         }
@@ -186,10 +230,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         fetchRestApi.fetchPullRequestReviewsById(
             fetchSdkStartParams.githubOrganization,
             fetchSdkStartParams.githubRepository,
+            fetchSdkStartParams.githubUsername,
+            fetchSdkStartParams.githubPersonalAccessToken,
             id
         )
     }.getOrElse {
-        System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
+        logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
         delay(MODERATE_DELAY)
         fetchPullRequestReviewsById(fetchSdkStartParams, id)
     }
@@ -201,10 +247,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
         fetchRestApi.fetchPullRequestById(
             fetchSdkStartParams.githubOrganization,
             fetchSdkStartParams.githubRepository,
+            fetchSdkStartParams.githubUsername,
+            fetchSdkStartParams.githubPersonalAccessToken,
             id
         )
     }.getOrElse {
-        System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
+        logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
         delay(MODERATE_DELAY)
         fetchPullRequestById(fetchSdkStartParams, id)
     }
@@ -219,10 +267,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 fetchSdkStartParams.githubRepository,
                 fetchSdkStartParams.analyticsStartDate,
                 fetchSdkStartParams.analyticsEndDate,
+                fetchSdkStartParams.githubUsername,
+                fetchSdkStartParams.githubPersonalAccessToken,
                 page
             )
         }.getOrElse {
-            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
+            logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
             delay(MODERATE_DELAY)
             fetchPullRequests(fetchSdkStartParams, page)
         }
@@ -235,10 +285,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             fetchRestApi.fetchIssueEventByIssueNumber(
                 fetchSdkStartParams.githubOrganization,
                 fetchSdkStartParams.githubRepository,
+                fetchSdkStartParams.githubUsername,
+                fetchSdkStartParams.githubPersonalAccessToken,
                 issueNumber
             )
         }.getOrElse {
-            System.err.println("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.")
+            logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
             delay(MODERATE_DELAY)
             fetchIssueEvent(fetchSdkStartParams, issueNumber)
         }

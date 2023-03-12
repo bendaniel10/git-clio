@@ -6,8 +6,6 @@ import com.bendaniel10.FetchSdk
 import com.bendaniel10.FetchSdkImpl
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.auth.*
-import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.serialization.kotlinx.json.*
@@ -18,7 +16,7 @@ import org.koin.dsl.module
 
 object FetchModule {
 
-    fun get(githubUsername: String, githubPersonalAccessToken: String) = module {
+    fun get() = module {
         singleOf(::FetchRestApiImpl) { bind<FetchRestApi>() }
         singleOf(::FetchSdkImpl) { bind<FetchSdk>() }
         single {
@@ -38,19 +36,8 @@ object FetchModule {
                         ignoreUnknownKeys = true
                     })
                 }
-                install(Auth) {
-                    basic {
-                        sendWithoutRequest { true }
-                        credentials {
-                            BasicAuthCredentials(
-                                githubUsername,
-                                githubPersonalAccessToken
-                            )
-                        }
-                    }
-                }
                 install(Logging) {
-                    level = LogLevel.NONE
+                    level = LogLevel.INFO
                 }
             }
         }
