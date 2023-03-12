@@ -1,6 +1,7 @@
 package com.bendaniel10.database.repo
 
 import com.bendaniel10.database.table.ReportEntity
+import io.ktor.util.date.*
 import org.jetbrains.exposed.sql.mapLazy
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.koin.core.component.KoinComponent
@@ -31,6 +32,9 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
         val filesChanged = report.pullRequests.mapLazy { it.changedFiles }.sum()
         val monthToPrsPair = report.pullRequests.mapLazy { it.createdAt.month.name }
             .groupBy { it }
+            .toSortedMap { key1, key2 ->
+                Month.valueOf(key1).ordinal.compareTo(Month.valueOf(key2).ordinal)
+            }
             .map { it.key to it.value.count().toString() }
             .toMap()
             .let {

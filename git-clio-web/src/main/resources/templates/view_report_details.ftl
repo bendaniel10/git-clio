@@ -93,7 +93,7 @@
                             </div>
                         </div>
                         <div class="col-7">
-                            <canvas class="mt-3 ms-5" id="prByMonthChart"></canvas>
+                            <canvas class="mt-3 ms-3" id="prByMonthChart"></canvas>
                         </div>
                     </div>
                 </div>
