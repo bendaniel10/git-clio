@@ -7,11 +7,13 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 
 object Users : IntIdTable(name = "User") {
     val login = varchar("login", 50)
+    val avatarUrl = varchar("avatarUrl", 128)
 }
 
 class UserEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<UserEntity>(Users)
 
     var login: String by Users.login
+    var avatarUrl: String by Users.avatarUrl
 }
 

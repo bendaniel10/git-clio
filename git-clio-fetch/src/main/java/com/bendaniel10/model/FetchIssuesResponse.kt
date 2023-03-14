@@ -26,5 +26,7 @@ data class FetchIssuesItem(
 
 @Serializable
 data class FetchIssuesItemUser(
-    val login: String
+    val login: String,
+    @SerialName("avatar_url")
+    val avatarUrl: String
 )

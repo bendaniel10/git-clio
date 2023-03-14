@@ -16,5 +16,7 @@ data class FetchPullRequestReviewResponseItem(
 
 @Serializable
 data class FetchPullRequestReviewResponseItemUser(
-    val login: String
+    val login: String,
+    @SerialName("avatar_url")
+    val avatarUrl: String
 )

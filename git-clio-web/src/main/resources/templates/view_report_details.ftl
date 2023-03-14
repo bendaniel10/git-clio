@@ -27,29 +27,30 @@
                 <div class="tab-pane active" id="pull-request" role="tabpanel" aria-labelledby="pull-request-tab"
                     tabindex="0">
                     <div class="row">
-                        <div class="col-5 mt-4">
+                        <div class="col-5 mt-5">
                             <div class="row">
-                                <div class="col mt-3 mb-3">
+                                <div class="col">
                                     <div class="card">
                                         <div class="card-body">
                                             <div class="float-end">
-                                                <i class="bi bi-sign-merge-right-fill"></i>
+                                                <i class="bi bi-graph-up"></i>
                                             </div>
                                             <h6 class="card-subtitle text-secondary">Total PRs</h6>
                                             <h2 class="mt-3 mb-3">${details.prs}</h2>
                                             <p class="mb-0 text-muted">
-                                                <span class="text-danger">&nbsp;</span>
+                                                <span class="text-success">${details.averagePrPerDay}</span>
+                                                <span class="text-nowrap">per day</span>
                                             </p>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col mt-3 mb-3">
+                                <div class="col">
                                     <div class="card">
                                         <div class="card-body">
                                             <div class="float-end">
                                                 <i class="bi bi-file-diff"></i>
                                             </div>
-                                            <h6 class="card-subtitle text-secondary">Open</h6>
+                                            <h6 class="card-subtitle text-secondary">Open PRs</h6>
                                             <h2 class="mt-3 mb-3">${details.openPrs}</h2>
                                             <p class="mb-0 text-muted">
                                                 <span class="text-danger">${details.openPrsPercentage}%</span>
@@ -60,13 +61,13 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col mt-3 mb-3">
+                                <div class="col mt-5">
                                     <div class="card">
                                         <div class="card-body">
                                             <div class="float-end">
                                                 <i class="bi bi-check2"></i>
                                             </div>
-                                            <h6 class="card-subtitle text-secondary">Merged</h6>
+                                            <h6 class="card-subtitle text-secondary">Merged PRs</h6>
                                             <h2 class="mt-3 mb-3">${details.merged}</h2>
                                             <p class="mb-0 text-muted">
                                                 <span class="text-success">${details.mergedPrsPercentage}%</span>
@@ -75,16 +76,16 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col mt-3 mb-3">
+                                <div class="col mt-5">
                                     <div class="card">
                                         <div class="card-body">
                                             <div class="float-end">
-                                                <i class="bi bi-check2-all"></i>
+                                                <i class="bi bi-trash"></i>
                                             </div>
-                                            <h6 class="card-subtitle text-secondary">Auto-merged</h6>
-                                            <h2 class="mt-3 mb-3">${details.autoMerged}</h2>
+                                            <h6 class="card-subtitle text-secondary">Dismissed PRs</h6>
+                                            <h2 class="mt-3 mb-3">${details.dismissedPrs}</h2>
                                             <p class="mb-0 text-muted">
-                                                <span class="text-success">${details.autoMergedPrsPercentage}%</span>
+                                                <span class="text-success">${details.dismissedPrsPercentage}%</span>
                                                 <span class="text-nowrap">of total</span>
                                             </p>
                                         </div>
@@ -92,8 +93,60 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-7">
-                            <canvas class="mt-3 ms-3" id="prByMonthChart"></canvas>
+                        <div class="col-7 mt-5">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4 class="header-title">PRs created by month</h4>
+                                </div>
+                                <div class="card-body">
+                                    <canvas class="mt-3 ms-3" id="prByMonthChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-5">
+                        <div class="col-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4 class="header-title">PRs status</h4>
+                                </div>
+                                <div class="card-body">
+                                    <canvas class="mt-3 ms-3" id="openVsMergedVsDismissedPrs"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4 class="header-title">Top creators</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <tbody>
+                                                <#list details.topPRCreators as prCreator>
+                                                    <tr>
+                                                        <td>${prCreator.position}</td>
+                                                        <td>${prCreator.name}</td>
+                                                        <td>${prCreator.value}</td>
+                                                    </tr>
+                                                </#list>
+                                            </tbody>
+                                        </table>
+                                        <small>Only showing the top 8</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4 class="header-title">Auto-merged PRs</h4>
+                                </div>
+                                <div class="card-body">
+                                    <canvas class="mt-3 ms-3" id="manualVsAutoMergePrs"></canvas>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -104,29 +157,9 @@
                 </div>
             </div>
     </div>
+    <br /> <br />
     <#include "/include/general_page_script.ftl">
-    <script>
-      const ctx = document.getElementById('prByMonthChart');
-
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: [${details.monthToPrsPair.labels}],
-          datasets: [{
-            label: ${details.monthToPrsPair.title},
-            data: [${details.monthToPrsPair.values}],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
-        }
-      });
-    </script>
+        <#include "/include/view_report_details_chart_script.ftl">
 </body>
 
 </html>

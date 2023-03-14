@@ -5,7 +5,7 @@ Pull fun stats from Github about your repository
 ## How to run (Using Docker)
 On the root project folder
 ```shell
-docker-compose -f docker-compose.yml up -d --build
+docker-compose -f docker-compose.yml up -d
 ```
 
 And to shut down the services:

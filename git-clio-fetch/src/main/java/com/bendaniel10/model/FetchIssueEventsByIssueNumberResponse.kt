@@ -1,5 +1,6 @@
 package com.bendaniel10.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 typealias IssueEventsResponse = List<IssueEventsItem>
@@ -11,5 +12,7 @@ data class IssueEventsItem(
 )
 @Serializable
 data class IssueEventsItemActor(
-    val login: String
+    val login: String,
+    @SerialName("avatar_url")
+    val avatarUrl: String
 )
