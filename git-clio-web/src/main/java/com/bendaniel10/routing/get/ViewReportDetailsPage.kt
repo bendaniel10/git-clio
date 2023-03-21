@@ -15,15 +15,77 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
     override fun path() = "/view_report_details"
 
     override suspend fun handle(pipelineContext: PipelineContext<Unit, ApplicationCall>) {
-        pipelineContext.call.respond(
-            FreeMarkerContent(
-                "view_report_details.ftl",
-                mapOf(
-                    "details" to viewReportDetailsRepo.fetchViewReportDetailsById(
-                        pipelineContext.call.request.queryParameters["report_id"]!!.toInt()
+        val reportId = pipelineContext.call.request.queryParameters["report_id"]!!.toInt()
+        val content = when (val category = pipelineContext.call.request.queryParameters["pr_category"]) {
+            null, "pr_overview" -> {
+                FreeMarkerContent(
+                    "/reportdetails/view_report_details.ftl",
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPrOverviewById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to (category ?: "pr_overview")
                     )
                 )
-            )
-        )
+            }
+
+            "prs_by_month" -> {
+                FreeMarkerContent(
+                    "/reportdetails/view_report_details.ftl",
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPrsByMonthById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
+
+            "pr_status" -> {
+                FreeMarkerContent(
+                    "/reportdetails/view_report_details.ftl",
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPRStatusById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
+
+            "pr_creators" -> {
+                FreeMarkerContent(
+                    "/reportdetails/view_report_details.ftl",
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchTopPRCreatorsById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
+
+            "pr_auto_merge_status" -> {
+                FreeMarkerContent(
+                    "/reportdetails/view_report_details.ftl",
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchMergedVsAutoMergedById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
+
+            else -> {
+                null
+            }
+        }
+
+        if (content != null) {
+            pipelineContext.call.respond(content)
+        } else {
+            pipelineContext.call.respondRedirect("/")
+        }
     }
 }

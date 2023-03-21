@@ -1,24 +1,5 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const prByMonthChart = document.getElementById('prByMonthChart');
-
-  new Chart(prByMonthChart, {
-    type: 'line',
-    data: {
-      labels: [${details.monthToPrsPair.labels}],
-      datasets: [{
-        label: ${details.monthToPrsPair.title},
-        data: [${details.monthToPrsPair.values}],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
-  });
   const manualVsAutoMergePrs = document.getElementById('manualVsAutoMergePrs');
 
   new Chart(manualVsAutoMergePrs, {

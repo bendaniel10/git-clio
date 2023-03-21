@@ -13,44 +13,23 @@ import java.time.format.TextStyle
 import java.util.*
 
 interface ViewReportDetailsRepo {
-    fun fetchViewReportDetailsById(reportId: Int): ViewReportDetails
+    fun fetchPrOverviewById(reportId: Int): ViewPROverviewDetails
+    fun fetchReportNameById(reportId: Int): String
+    fun fetchPrsByMonthById(reportId: Int): ViewPRsByMonthDetails
+    fun fetchPRStatusById(reportId: Int): ViewPRStatusDetails
+    fun fetchTopPRCreatorsById(reportId: Int): ViewTopPRCreatorsDetails
+    fun fetchMergedVsAutoMergedById(reportId: Int): ViewManualVsAutoMergedPRDetails
 }
 
 internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent {
     private val logger = LoggerFactory.getLogger(ViewReportDetailsRepoImpl::class.java)
 
-    override fun fetchViewReportDetailsById(reportId: Int): ViewReportDetails = transaction {
+    override fun fetchReportNameById(reportId: Int) = transaction {
+        ReportEntity.findById(reportId)!!.name
+    }
+
+    override fun fetchPrsByMonthById(reportId: Int) = transaction {
         val report = ReportEntity.findById(reportId)!!
-        logger.debug("Getting report details for ${report.name}")
-        val reportName = report.name
-        val prs = report.totalPullRequests
-        val averagePrPerDay = (prs.toFloat() / DaysBetween.twoInstants(
-            report.analyticsStartDate.toKotlinLocalDate().atStartOfDayIn(TimeZone.UTC),
-            report.analyticsEndDate.toKotlinLocalDate().atStartOfDayIn(TimeZone.UTC),
-        )).let { "%.2f".format(it) }
-        val openPrs = report.pullRequests.mapLazy { it.closedAt == null }.count { it }
-        val openPrsPercentage = calculateTwoDecimalPlacesPercentage(openPrs, prs)
-        val merged = report.pullRequests.mapLazy { it.mergedAt != null }.count { it }
-        val mergedPrsPercentage = calculateTwoDecimalPlacesPercentage(merged, prs)
-        val dismissedPrs = report.pullRequests.mapLazy { it.closedAt != null && it.mergedAt == null }.count { it }
-        val dismissedPrsPercentage = calculateTwoDecimalPlacesPercentage(dismissedPrs, prs)
-        val autoMerged = report.pullRequests.mapLazy { it.autoMerge }.count { it }
-        val manualVsAutoMergedPrs = PieChartData(
-            "'Manual vs Auto-Merged PRs'",
-            "'Manual Merge', 'Auto-merge'",
-            "${merged - autoMerged}, $autoMerged",
-            "'rgb(255, 99, 132)', 'rgb(54, 162, 235)'"
-        )
-        val openVsMergedVsDismissedPrs = PieChartData(
-            "'Open vs Merged vs Dismissed'",
-            "'Open', 'Merged', 'Dismissed'",
-            "$openPrs, $merged, $dismissedPrs",
-            "'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 205, 86)'"
-        )
-        val issues = report.totalIssues
-        val locAdditions = report.pullRequests.mapLazy { it.additions }.sum()
-        val locDeletions = report.pullRequests.mapLazy { it.deletions }.sum()
-        val filesChanged = report.pullRequests.mapLazy { it.changedFiles }.sum()
         val monthToPrsPair = report.pullRequests.mapLazy { it.createdAt.month }
             .groupBy { it }
             .toSortedMap { month1, month2 ->
@@ -65,6 +44,30 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
                     it.values.joinToString()
                 )
             }
+        ViewPRsByMonthDetails(monthToPrsPair)
+    }
+
+    override fun fetchPRStatusById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val merged = report.pullRequests.mapLazy { it.mergedAt != null }.count { it }
+        val openPrs = report.pullRequests.mapLazy { it.closedAt == null }.count { it }
+        val dismissedPrs = report.pullRequests.mapLazy { it.closedAt != null && it.mergedAt == null }.count { it }
+        val openVsMergedVsDismissedPrs = PieChartData(
+            "'Open vs Merged vs Dismissed'",
+            "'Open', 'Merged', 'Dismissed'",
+            "$openPrs, $merged, $dismissedPrs",
+            "'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 205, 86)'"
+        )
+        ViewPRStatusDetails(
+            openPrs,
+            merged,
+            dismissedPrs,
+            openVsMergedVsDismissedPrs
+        )
+    }
+
+    override fun fetchTopPRCreatorsById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
         val topPRCreators = report.pullRequests.mapLazy { it.user.login }
             .groupBy { it }
             .map { it.key to it.value.count() }
@@ -72,10 +75,52 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
             .sortedByDescending { (_, value) -> value }
             .mapIndexed { index, pair ->
                 LeaderboardData(index + 1, pair.first, pair.second.toString())
-            }.take(8)
+            }
+        ViewTopPRCreatorsDetails(
+            topPRCreators
+        )
+    }
 
-        ViewReportDetails(
-            reportName,
+    override fun fetchMergedVsAutoMergedById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val merged = report.pullRequests.mapLazy { it.mergedAt != null }.count { it }
+        val autoMerged = report.pullRequests.mapLazy { it.autoMerge }.count { it }
+        val manualMerge = merged - autoMerged
+        val manualVsAutoMergedPrs = PieChartData(
+            "'Manual vs Auto-Merged PRs'",
+            "'Manual Merge', 'Auto-merge'",
+            "$manualMerge, $autoMerged",
+            "'rgb(255, 99, 132)', 'rgb(54, 162, 235)'"
+        )
+
+        ViewManualVsAutoMergedPRDetails(
+            merged,
+            autoMerged,
+            manualMerge,
+            manualVsAutoMergedPrs
+        )
+    }
+
+    override fun fetchPrOverviewById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        logger.debug("Getting PR overview for ${report.name}")
+        val prs = report.totalPullRequests
+        val averagePrPerDay = (prs.toFloat() / DaysBetween.twoInstants(
+            report.analyticsStartDate.toKotlinLocalDate().atStartOfDayIn(TimeZone.UTC),
+            report.analyticsEndDate.toKotlinLocalDate().atStartOfDayIn(TimeZone.UTC),
+        )).let { "%.2f".format(it) }
+        val openPrs = report.pullRequests.mapLazy { it.closedAt == null }.count { it }
+        val openPrsPercentage = calculateTwoDecimalPlacesPercentage(openPrs, prs)
+        val merged = report.pullRequests.mapLazy { it.mergedAt != null }.count { it }
+        val mergedPrsPercentage = calculateTwoDecimalPlacesPercentage(merged, prs)
+        val dismissedPrs = report.pullRequests.mapLazy { it.closedAt != null && it.mergedAt == null }.count { it }
+        val dismissedPrsPercentage = calculateTwoDecimalPlacesPercentage(dismissedPrs, prs)
+        val autoMerged = report.pullRequests.mapLazy { it.autoMerge }.count { it }
+        val autoMergedPercentage = calculateTwoDecimalPlacesPercentage(autoMerged, merged)
+        val comments = report.pullRequests.mapLazy { it.comments + it.reviewComments }.sum()
+        val averageCommentPerPR = (comments.toFloat() / prs).let { "%.2f".format(it) }
+
+        ViewPROverviewDetails(
             prs,
             averagePrPerDay,
             openPrs,
@@ -85,20 +130,14 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
             dismissedPrs,
             dismissedPrsPercentage,
             autoMerged,
-            issues,
-            locAdditions,
-            locDeletions,
-            filesChanged,
-            monthToPrsPair,
-            manualVsAutoMergedPrs,
-            topPRCreators,
-            openVsMergedVsDismissedPrs
+            autoMergedPercentage,
+            comments,
+            averageCommentPerPR
         )
     }
 }
 
-data class ViewReportDetails(
-    val reportName: String,
+data class ViewPROverviewDetails(
     val prs: Int,
     val averagePrPerDay: String,
     val openPrs: Int,
@@ -108,14 +147,31 @@ data class ViewReportDetails(
     val dismissedPrs: Int,
     val dismissedPrsPercentage: String,
     val autoMerged: Int,
-    val issues: Int,
-    val locAdditions: Int,
-    val locDeletions: Int,
-    val filesChanged: Int,
+    val autoMergedPercentage: String,
+    val comments: Int,
+    val averageCommentPerPR: String,
+)
+
+data class ViewPRsByMonthDetails(
     val monthToPrsPair: SingleLineChartData,
-    val manualVsAutoMergedPrs: PieChartData,
+)
+
+data class ViewPRStatusDetails(
+    val openPrs: Int,
+    val merged: Int,
+    val dismissedPrs: Int,
+    val openVsMergedVsDismissedPrs: PieChartData,
+)
+
+data class ViewTopPRCreatorsDetails(
     val topPRCreators: List<LeaderboardData>,
-    val openVsMergedVsDismissedPrs: PieChartData
+)
+
+data class ViewManualVsAutoMergedPRDetails(
+    val merged: Int,
+    val autoMerged: Int,
+    val manualMerge: Int,
+    val manualVsAutoMergedPrs: PieChartData,
 )
 
 data class SingleLineChartData(
