@@ -4,11 +4,18 @@ Pull fun stats from Github about your repository
 
 ## How to run (Using Docker)
 On the root project folder
+
+1. Build the local project:
+```shell
+docker build git-clio --no-cache
+```
+
+2. Launch the project
 ```shell
 docker-compose -f docker-compose.yml up -d
 ```
 
-And to shut down the services:
+3. Finally (when done) shutdown the project
 ```shell
 docker-compose down
 ```
