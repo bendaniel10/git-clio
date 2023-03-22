@@ -7,17 +7,18 @@ On the root project folder
 
 1. Build the local project:
 ```shell
-docker build git-clio --no-cache
+docker build --no-cache .
 ```
 
 2. Launch the project
 ```shell
 docker-compose -f docker-compose.yml up -d
 ```
+You can view the logs using `docker-compose logs`
 
 3. Finally (when done) shutdown the project
 ```shell
-docker-compose down
+docker-compose -f docker-compose.yml stop
 ```
 
 ## Project Endpoints:
