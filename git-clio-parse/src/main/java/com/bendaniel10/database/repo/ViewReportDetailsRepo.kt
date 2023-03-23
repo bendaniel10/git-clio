@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.mapLazy
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.koin.core.component.KoinComponent
 import org.slf4j.LoggerFactory
+import java.time.Month
 import java.time.format.TextStyle
 import java.util.*
 
@@ -19,6 +20,8 @@ interface ViewReportDetailsRepo {
     fun fetchPRStatusById(reportId: Int): ViewPRStatusDetails
     fun fetchTopPRCreatorsById(reportId: Int): ViewTopPRCreatorsDetails
     fun fetchMergedVsAutoMergedById(reportId: Int): ViewManualVsAutoMergedPRDetails
+    fun fetchPrChangesOverviewById(reportId: Int): ViewPRChangesOverview
+    fun fetchPrCCommitsOverviewById(reportId: Int): ViewPRCommitsOverview
 }
 
 internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent {
@@ -30,7 +33,7 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
 
     override fun fetchPrsByMonthById(reportId: Int) = transaction {
         val report = ReportEntity.findById(reportId)!!
-        val monthToPrsPair = report.pullRequests.mapLazy { it.createdAt.month }
+        val prsPerMonth = report.pullRequests.mapLazy { it.createdAt.month }
             .groupBy { it }
             .toSortedMap { month1, month2 ->
                 month1.ordinal.compareTo(month2.ordinal)
@@ -44,7 +47,7 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
                     it.values.joinToString()
                 )
             }
-        ViewPRsByMonthDetails(monthToPrsPair)
+        ViewPRsByMonthDetails(prsPerMonth)
     }
 
     override fun fetchPRStatusById(reportId: Int) = transaction {
@@ -101,9 +104,63 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
         )
     }
 
+    override fun fetchPrChangesOverviewById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val additions = report.pullRequests.sumOf { it.additions }
+        val deletions = report.pullRequests.sumOf { it.deletions }
+        val changedFiles = report.pullRequests.sumOf { it.changedFiles }
+        logger.debug("Add: $additions, Del: $deletions, CF: $changedFiles")
+        data class MonthChanges(val month: Month, val additions: Int, val deletions: Int, val changedFiles: Int)
+
+        val changesPerMonth = report.pullRequests.mapLazy {
+            MonthChanges(
+                it.createdAt.month,
+                it.additions,
+                it.deletions,
+                it.changedFiles
+            )
+        }
+            .groupBy { it.month }
+            .toSortedMap { month1, month2 ->
+                month1.ordinal.compareTo(month2.ordinal)
+            }
+            .map { monthToMonthChanges ->
+                MonthChanges(
+                    monthToMonthChanges.key,
+                    monthToMonthChanges.value.sumOf { it.additions },
+                    monthToMonthChanges.value.sumOf { it.deletions }.unaryMinus(),
+                    monthToMonthChanges.value.sumOf { it.changedFiles }
+                )
+            }
+            .let { monthChanges ->
+                DoubleLineChartData(
+                    "'PR Changes'",
+                    monthChanges.map { it.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }.joinToString { key -> "'$key'" },
+                    LabelToValues("'Additions'", monthChanges.map { it.additions }.joinToString()),
+                    LabelToValues("'Deletions'", monthChanges.map { it.deletions }.joinToString()),
+                )
+            }
+        ViewPRChangesOverview(
+            additions,
+            deletions,
+            changedFiles,
+            changesPerMonth
+        )
+    }
+
+    override fun fetchPrCCommitsOverviewById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val commits = report.pullRequests.mapLazy { it.commits }.count()
+        val changedFiles = report.pullRequests.mapLazy { it.changedFiles }.count()
+
+        ViewPRCommitsOverview(
+            commits,
+            changedFiles
+        )
+    }
+
     override fun fetchPrOverviewById(reportId: Int) = transaction {
         val report = ReportEntity.findById(reportId)!!
-        logger.debug("Getting PR overview for ${report.name}")
         val prs = report.totalPullRequests
         val averagePrPerDay = (prs.toFloat() / DaysBetween.twoInstants(
             report.analyticsStartDate.toKotlinLocalDate().atStartOfDayIn(TimeZone.UTC),
@@ -153,7 +210,7 @@ data class ViewPROverviewDetails(
 )
 
 data class ViewPRsByMonthDetails(
-    val monthToPrsPair: SingleLineChartData,
+    val prsPerMonth: SingleLineChartData,
 )
 
 data class ViewPRStatusDetails(
@@ -180,6 +237,15 @@ data class SingleLineChartData(
     val values: String,
 )
 
+data class DoubleLineChartData(
+    val title: String,
+    val labels: String,
+    val first: LabelToValues,
+    val second: LabelToValues,
+)
+
+data class LabelToValues(val label: String, val values: String)
+
 data class PieChartData(
     // title: 'My First Dataset'
     val title: String,
@@ -203,6 +269,18 @@ data class LeaderboardData(
     val position: Int,
     val name: String,
     val value: String
+)
+
+data class ViewPRChangesOverview(
+    val additions: Int,
+    val deletions: Int,
+    val filesChanged: Int,
+    val changesPerMonth: DoubleLineChartData,
+)
+
+data class ViewPRCommitsOverview(
+    val commits: Long,
+    val changedFiles: Long,
 )
 
 private fun calculateTwoDecimalPlacesPercentage(numerator: Int, denominator: Int) =

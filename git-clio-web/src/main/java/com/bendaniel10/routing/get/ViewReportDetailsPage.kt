@@ -76,6 +76,17 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
                     )
                 )
             }
+            "pr_changes_overview" -> {
+                FreeMarkerContent(
+                    "/reportdetails/view_report_details.ftl",
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPrChangesOverviewById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
 
             else -> {
                 null

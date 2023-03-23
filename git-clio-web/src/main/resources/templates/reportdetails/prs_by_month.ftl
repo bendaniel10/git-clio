@@ -13,10 +13,10 @@
   new Chart(prByMonthChart, {
     type: 'line',
     data: {
-      labels: [${details.monthToPrsPair.labels}],
+      labels: [${details.prsPerMonth.labels}],
       datasets: [{
-        label: ${details.monthToPrsPair.title},
-        data: [${details.monthToPrsPair.values}],
+        label: ${details.prsPerMonth.title},
+        data: [${details.prsPerMonth.values}],
         borderWidth: 1
       }]
     },
