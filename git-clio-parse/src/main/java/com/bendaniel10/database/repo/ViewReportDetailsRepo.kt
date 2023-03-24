@@ -10,9 +10,11 @@ import org.jetbrains.exposed.sql.mapLazy
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.koin.core.component.KoinComponent
 import org.slf4j.LoggerFactory
+import java.time.Duration
 import java.time.Month
 import java.time.format.TextStyle
 import java.util.*
+import kotlin.math.ceil
 
 interface ViewReportDetailsRepo {
     fun fetchPrOverviewById(reportId: Int): ViewPROverviewDetails
@@ -25,6 +27,7 @@ interface ViewReportDetailsRepo {
     fun fetchPrCCommitsOverviewById(reportId: Int): ViewPRCommitsOverview
 
     fun fetchViewPRsCommentsById(reportId: Int): ViewPRsCommentsDetails
+    fun fetchPRsMergeDurationOverviewById(reportId: Int): ViewPRsMergeDurationDetails
 }
 
 internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent {
@@ -152,6 +155,47 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
         )
     }
 
+    override fun fetchPRsMergeDurationOverviewById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val averageDurationHours = report.pullRequests.mapLazy {
+            it.createdAt to it.mergedAt
+        }
+            .filter { it.second != null }
+            .map { Duration.between(it.first, it.second).toMinutes() }
+            .let { minutesDuration ->
+                ((minutesDuration.sum() / 60f) / minutesDuration.count()).let { "%.2f".format(it) }
+            }
+
+        val (shortestDurationHours, longestDurationHours) = report.pullRequests.mapLazy {
+            it.createdAt to it.mergedAt
+        }
+            .filter { it.second != null }
+            .map { createdToMerged ->
+                Duration.between(createdToMerged.first, createdToMerged.second).toMinutes()
+            }
+            .let { minutesDuration ->
+                (minutesDuration.minOf { it } / 60f).let { "%.2f".format(it) } to (minutesDuration.maxOf { it } / 60f).let {
+                    "%.2f".format(
+                        it
+                    )
+                }
+            }
+
+        val durationByCount = buildDistributionChartData(report, "'Merge duration distribution'") {
+            if (it.mergedAt == null) {
+                null
+            } else {
+                ceil((Duration.between(it.createdAt, it.mergedAt).toMinutes() / 60f)).toInt()
+            }
+        }
+        ViewPRsMergeDurationDetails(
+            averageDurationHours,
+            shortestDurationHours,
+            longestDurationHours,
+            durationByCount
+        )
+    }
+
     override fun fetchPrCCommitsOverviewById(reportId: Int) = transaction {
         val report = ReportEntity.findById(reportId)!!
         val commits = report.pullRequests.sumOf { it.commits }
@@ -190,15 +234,18 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
     private fun buildDistributionChartData(
         report: ReportEntity,
         title: String,
-        mapSelector: (PullRequestEntity) -> Int
+        mapSelector: (PullRequestEntity) -> Int?
     ) =
         report.pullRequests.mapLazy { mapSelector.invoke(it) }
+            .asSequence()
+            .filterNotNull()
             .groupBy { it }
             .map { entry ->
                 entry.value.count() to entry.key
             }
             .toList()
             .sortedBy { (_, comment) -> comment }
+            .toList()
             .let { commentsToCountPair ->
                 SingleLineChartData(
                     title,
@@ -340,6 +387,13 @@ data class ViewPRCommitsOverview(
     val commits: Int,
     val averageCommitPerPR: String,
     val commitByCountDist: SingleLineChartData
+)
+
+data class ViewPRsMergeDurationDetails(
+    val averageDurationHours: String,
+    val shortestDurationHours: String,
+    val longestDurationHours: String,
+    val durationByCount: SingleLineChartData
 )
 
 private fun calculateTwoDecimalPlacesPercentage(numerator: Int, denominator: Int) =

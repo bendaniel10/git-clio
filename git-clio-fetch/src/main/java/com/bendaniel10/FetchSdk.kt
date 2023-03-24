@@ -78,7 +78,9 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             // Emit pull requests
             coroutineScope.launch {
                 logger.info("Starting to process pull requests")
+                val defaultBranchName = fetchDefaultBranchName(fetchSdkStartParams)
                 processPullRequests(
+                    defaultBranchName,
                     fetchSdkStartParams,
                     coroutineScope,
                     emitTotalCount = true
@@ -145,11 +147,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
     }
 
     private suspend fun processPullRequests(
+        defaultBranchName: String,
         fetchSdkStartParams: FetchSdkStartParams,
         coroutineScope: CoroutineScope,
         emitTotalCount: Boolean = false
     ): Unit = withContext(Dispatchers.IO) {
-        fetchPullRequests(fetchSdkStartParams, 1).also { pullRequests ->
+        fetchPullRequests(defaultBranchName, fetchSdkStartParams, 1).also { pullRequests ->
             if (emitTotalCount) {
                 response.emit(FetchSdkResponse.ExpectedPullRequestTotal(pullRequests.totalCount))
             }
@@ -163,7 +166,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
 
             val totalPages = ceil(pullRequests.totalCount.toFloat() / 100f).toInt()
             for (currentPage in 2..min(MAX_GITHUB_SEARCH_FETCH_PAGE, totalPages)) {
-                fetchPullRequests(fetchSdkStartParams, currentPage).also { otherPullRequests ->
+                fetchPullRequests(defaultBranchName, fetchSdkStartParams, currentPage).also { otherPullRequests ->
                     otherPullRequests.items.map { pr ->
                         coroutineScope.async(Dispatchers.IO) {
                             emitPullRequestResponse(fetchSdkStartParams, pr)
@@ -173,10 +176,12 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 }
             }
             if (totalPages > MAX_GITHUB_SEARCH_FETCH_PAGE) {
-                val newAnalyticsStartDate = fetchPullRequests(fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
-                    .items.maxByOrNull { it.createdAt }!!.createdAt
+                val newAnalyticsStartDate =
+                    fetchPullRequests(defaultBranchName, fetchSdkStartParams, MAX_GITHUB_SEARCH_FETCH_PAGE)
+                        .items.maxByOrNull { it.createdAt }!!.createdAt
                 logger.info("Total pages more than $MAX_GITHUB_SEARCH_FETCH_PAGE, splitting and start from: $newAnalyticsStartDate to ${fetchSdkStartParams.analyticsEndDate}")
                 processPullRequests(
+                    defaultBranchName,
                     fetchSdkStartParams.copy(analyticsStartDate = newAnalyticsStartDate.toLocalDateTime(TimeZone.UTC).date),
                     coroutineScope
                 )
@@ -258,6 +263,7 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
     }
 
     private suspend fun fetchPullRequests(
+        defaultBranchName: String,
         fetchSdkStartParams: FetchSdkStartParams,
         page: Int
     ): FetchPullRequestResponse =
@@ -269,12 +275,13 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
                 fetchSdkStartParams.analyticsEndDate,
                 fetchSdkStartParams.githubUsername,
                 fetchSdkStartParams.githubPersonalAccessToken,
+                defaultBranchName,
                 page
             )
         }.getOrElse {
             logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
             delay(MODERATE_DELAY)
-            fetchPullRequests(fetchSdkStartParams, page)
+            fetchPullRequests(defaultBranchName, fetchSdkStartParams, page)
         }
 
     private suspend fun fetchIssueEvent(
@@ -294,6 +301,21 @@ class FetchSdkImpl : FetchSdk, KoinComponent {
             delay(MODERATE_DELAY)
             fetchIssueEvent(fetchSdkStartParams, issueNumber)
         }
+
+    private suspend fun fetchDefaultBranchName(
+        fetchSdkStartParams: FetchSdkStartParams
+    ): String = runCatching {
+        fetchRestApi.fetchDefaultPRBranch(
+            fetchSdkStartParams.githubOrganization,
+            fetchSdkStartParams.githubRepository,
+            fetchSdkStartParams.githubUsername,
+            fetchSdkStartParams.githubPersonalAccessToken,
+        ).defaultBranch
+    }.getOrElse {
+        logger.error("Failed, retrying in $MODERATE_DELAY milliseconds: ${it.message}.", it)
+        delay(MODERATE_DELAY)
+        fetchDefaultBranchName(fetchSdkStartParams)
+    }
 
     override fun response() = response
 }

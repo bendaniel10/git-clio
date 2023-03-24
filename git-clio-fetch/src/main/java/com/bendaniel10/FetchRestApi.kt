@@ -26,6 +26,7 @@ internal interface FetchRestApi {
         analyticsEndDate: LocalDate,
         githubUsername: String,
         githubPersonalAccessToken: String,
+        defaultBranchName: String,
         page: Int
     ): FetchPullRequestResponse
 
@@ -52,9 +53,25 @@ internal interface FetchRestApi {
         githubPersonalAccessToken: String,
         issueNumber: Int
     ): IssueEventsResponse
+
+    suspend fun fetchDefaultPRBranch(
+        githubOrganization: String,
+        githubRepository: String,
+        githubUsername: String,
+        githubPersonalAccessToken: String
+    ): FetchDefaultBranchNameResponse
 }
 
 internal class FetchRestApiImpl(private val httpClient: HttpClient) : FetchRestApi {
+    override suspend fun fetchDefaultPRBranch(
+        githubOrganization: String,
+        githubRepository: String,
+        githubUsername: String,
+        githubPersonalAccessToken: String,
+    ): FetchDefaultBranchNameResponse = httpClient.withBasicAuthentication(githubUsername, githubPersonalAccessToken)
+        .get("https://api.github.com/repos/$githubOrganization/$githubRepository")
+        .body()
+
     override suspend fun fetchIssues(
         githubOrganization: String,
         githubRepository: String,
@@ -74,9 +91,10 @@ internal class FetchRestApiImpl(private val httpClient: HttpClient) : FetchRestA
         analyticsEndDate: LocalDate,
         githubUsername: String,
         githubPersonalAccessToken: String,
+        defaultBranchName: String,
         page: Int
     ): FetchPullRequestResponse = httpClient.withBasicAuthentication(githubUsername, githubPersonalAccessToken)
-        .get("https://api.github.com/search/issues?sort=created&order=asc&page=$page&per_page=$MAX_ITEMS_PER_PAGE&q=repo:$githubOrganization/$githubRepository+is:pr+created:$analyticsStartDate..$analyticsEndDate")
+        .get("https://api.github.com/search/issues?sort=created&order=asc&page=$page&per_page=$MAX_ITEMS_PER_PAGE&q=repo:$githubOrganization/$githubRepository+is:pr+base:$defaultBranchName+created:$analyticsStartDate..$analyticsEndDate")
         .body()
 
     override suspend fun fetchPullRequestById(

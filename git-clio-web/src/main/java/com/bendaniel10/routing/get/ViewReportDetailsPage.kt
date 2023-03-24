@@ -111,6 +111,17 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
                     )
                 )
             }
+            "pr_merge_duration" -> {
+                FreeMarkerContent(
+                    REPORT_DETAILS_URL,
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPRsMergeDurationOverviewById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
 
             else -> {
                 null

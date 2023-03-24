@@ -47,6 +47,8 @@
                                 <#include "/reportdetails/pr_comments_overview.ftl">
                             <#elseif prCategory == "pr_commits_overview">
                                 <#include "/reportdetails/pr_commits_overview.ftl">
+                            <#elseif prCategory == "pr_merge_duration">
+                                <#include "/reportdetails/pr_merge_duration.ftl">
                             <#else>
                                 <#include "/reportdetails/pr_overview.ftl">
                             </#if>
@@ -60,6 +62,7 @@
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_overview">Overview</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=prs_by_month">PRs by month</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_status">PR Status</a></li>
+                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_merge_duration">Merge duration</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_creators">PR Creators</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_changes_overview">Code Changes</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_auto_merge_status">Auto-Merge PRs</a></li>
