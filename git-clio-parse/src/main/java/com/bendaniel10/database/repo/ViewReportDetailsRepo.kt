@@ -1,6 +1,7 @@
 package com.bendaniel10.database.repo
 
 import com.bendaniel10.DaysBetween
+import com.bendaniel10.database.table.PullRequestEntity
 import com.bendaniel10.database.table.ReportEntity
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -22,6 +23,8 @@ interface ViewReportDetailsRepo {
     fun fetchMergedVsAutoMergedById(reportId: Int): ViewManualVsAutoMergedPRDetails
     fun fetchPrChangesOverviewById(reportId: Int): ViewPRChangesOverview
     fun fetchPrCCommitsOverviewById(reportId: Int): ViewPRCommitsOverview
+
+    fun fetchViewPRsCommentsById(reportId: Int): ViewPRsCommentsDetails
 }
 
 internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent {
@@ -135,7 +138,8 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
             .let { monthChanges ->
                 DoubleLineChartData(
                     "'PR Changes'",
-                    monthChanges.map { it.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }.joinToString { key -> "'$key'" },
+                    monthChanges.map { it.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+                        .joinToString { key -> "'$key'" },
                     LabelToValues("'Additions'", monthChanges.map { it.additions }.joinToString()),
                     LabelToValues("'Deletions'", monthChanges.map { it.deletions }.joinToString()),
                 )
@@ -149,13 +153,51 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
     }
 
     override fun fetchPrCCommitsOverviewById(reportId: Int) = transaction {
+        // todo
         val report = ReportEntity.findById(reportId)!!
-        val commits = report.pullRequests.mapLazy { it.commits }.count()
-        val changedFiles = report.pullRequests.mapLazy { it.changedFiles }.count()
+        val commits = report.pullRequests.sumOf { it.commits }
+        val changedFiles = report.pullRequests.sumOf { it.changedFiles }
 
         ViewPRCommitsOverview(
             commits,
             changedFiles
+        )
+    }
+
+    override fun fetchViewPRsCommentsById(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val reviewComments = report.pullRequests.sumOf { it.reviewComments }
+        val comments = report.pullRequests.sumOf { it.comments }
+        val prs = report.totalPullRequests
+        val averageCommentPerPR = (comments.toFloat() / prs).let { "%.2f".format(it) }
+        val averageReviewCommentPerPR = (reviewComments.toFloat() / prs).let { "%.2f".format(it) }
+
+        fun buildDistributionChartData(title: String, mapSelector: (PullRequestEntity) -> Int) =
+            report.pullRequests.mapLazy { mapSelector.invoke(it) }
+                .groupBy { it }
+                .map { entry ->
+                    entry.value.count() to entry.key
+                }
+                .toList()
+                .sortedBy { (_, comment) -> comment }
+                .let { commentsToCountPair ->
+                    SingleLineChartData(
+                        title,
+                        commentsToCountPair.map { it.second }.joinToString { key -> "'$key'" },
+                        commentsToCountPair.map { it.first }.joinToString(),
+                    )
+                }
+
+        val commentsByCountDist = buildDistributionChartData("'Comments : PR'") { it.comments }
+        val reviewCommentsByCountDist = buildDistributionChartData("'Review Comments : PR'") { it.reviewComments }
+
+        ViewPRsCommentsDetails(
+            comments,
+            averageCommentPerPR,
+            reviewComments,
+            averageReviewCommentPerPR,
+            commentsByCountDist,
+            reviewCommentsByCountDist
         )
     }
 
@@ -207,6 +249,15 @@ data class ViewPROverviewDetails(
     val autoMergedPercentage: String,
     val comments: Int,
     val averageCommentPerPR: String,
+)
+
+data class ViewPRsCommentsDetails(
+    val comments: Int,
+    val averageCommentPerPr: String,
+    val reviewComments: Int,
+    val averageReviewCommentPerPr: String,
+    val commentsByCountDist: SingleLineChartData,
+    val reviewCommentsByCountDist: SingleLineChartData,
 )
 
 data class ViewPRsByMonthDetails(
@@ -279,8 +330,8 @@ data class ViewPRChangesOverview(
 )
 
 data class ViewPRCommitsOverview(
-    val commits: Long,
-    val changedFiles: Long,
+    val commits: Int,
+    val changedFiles: Int,
 )
 
 private fun calculateTwoDecimalPlacesPercentage(numerator: Int, denominator: Int) =

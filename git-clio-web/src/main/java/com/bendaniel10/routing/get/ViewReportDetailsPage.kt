@@ -9,6 +9,8 @@ import io.ktor.util.pipeline.*
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+private const val REPORT_DETAILS_URL = "/reportdetails/view_report_details.ftl"
+
 class ViewReportDetailsPage : RoutingHandler, KoinComponent {
 
     private val viewReportDetailsRepo: ViewReportDetailsRepo by inject()
@@ -19,7 +21,7 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
         val content = when (val category = pipelineContext.call.request.queryParameters["pr_category"]) {
             null, "pr_overview" -> {
                 FreeMarkerContent(
-                    "/reportdetails/view_report_details.ftl",
+                    REPORT_DETAILS_URL,
                     mapOf(
                         "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
                         "details" to viewReportDetailsRepo.fetchPrOverviewById(reportId),
@@ -31,7 +33,7 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
 
             "prs_by_month" -> {
                 FreeMarkerContent(
-                    "/reportdetails/view_report_details.ftl",
+                    REPORT_DETAILS_URL,
                     mapOf(
                         "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
                         "details" to viewReportDetailsRepo.fetchPrsByMonthById(reportId),
@@ -43,7 +45,7 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
 
             "pr_status" -> {
                 FreeMarkerContent(
-                    "/reportdetails/view_report_details.ftl",
+                    REPORT_DETAILS_URL,
                     mapOf(
                         "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
                         "details" to viewReportDetailsRepo.fetchPRStatusById(reportId),
@@ -55,7 +57,7 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
 
             "pr_creators" -> {
                 FreeMarkerContent(
-                    "/reportdetails/view_report_details.ftl",
+                    REPORT_DETAILS_URL,
                     mapOf(
                         "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
                         "details" to viewReportDetailsRepo.fetchTopPRCreatorsById(reportId),
@@ -67,7 +69,7 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
 
             "pr_auto_merge_status" -> {
                 FreeMarkerContent(
-                    "/reportdetails/view_report_details.ftl",
+                    REPORT_DETAILS_URL,
                     mapOf(
                         "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
                         "details" to viewReportDetailsRepo.fetchMergedVsAutoMergedById(reportId),
@@ -78,10 +80,21 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
             }
             "pr_changes_overview" -> {
                 FreeMarkerContent(
-                    "/reportdetails/view_report_details.ftl",
+                    REPORT_DETAILS_URL,
                     mapOf(
                         "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
                         "details" to viewReportDetailsRepo.fetchPrChangesOverviewById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
+            "pr_comments_overview" -> {
+                FreeMarkerContent(
+                    REPORT_DETAILS_URL,
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchViewPRsCommentsById(reportId),
                         "reportId" to reportId,
                         "prCategory" to category
                     )

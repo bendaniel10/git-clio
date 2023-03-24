@@ -20,6 +20,10 @@
                     <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button"
                         role="tab" aria-controls="issues" aria-selected="false">Issues</button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="vanity-tab" data-bs-toggle="tab" data-bs-target="#vanity" type="button"
+                        role="tab" aria-controls="vanity" aria-selected="false">Vanity Awards</button>
+                </li>
             </ul>
 
             <div class="tab-content">
@@ -39,6 +43,8 @@
                                 <#include "/reportdetails/pr_auto_merge_status.ftl">
                             <#elseif prCategory == "pr_changes_overview">
                                 <#include "/reportdetails/pr_changes_overview.ftl">
+                            <#elseif prCategory == "pr_comments_overview">
+                                <#include "/reportdetails/pr_comments_overview.ftl">
                             <#else>
                                 <#include "/reportdetails/pr_overview.ftl">
                             </#if>
@@ -55,12 +61,33 @@
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_creators">PR Creators</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_changes_overview">PR Changes Overview</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_auto_merge_status">Auto-Merge PRs</a></li>
+                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_comments_overview">PR Comments Overview</a></li>
                                 </ul>
                               </div>
                         </div>
                     </div>
                 </div>
                 <div class="tab-pane" id="issues" role="tabpanel" aria-labelledby="issues-tab" tabindex="0">
+                    <div class="row mt-5">
+                        <div class="col-9">
+
+                        </div>
+                        <div class="col-3">
+                            <div class="card">
+                                <div class="card-header">
+                                  Categories
+                                </div>
+                                <ul class="list-group list-group-flush">
+                                  <li class="list-group-item"><a href="">Overview</a></li>
+                                  <li class="list-group-item"><a href="">Overview</a></li>
+                                  <li class="list-group-item"><a href="">Overview</a></li>
+                                  <li class="list-group-item"><a href="">Overview</a></li>
+                                </ul>
+                              </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane" id="vanity" role="tabpanel" aria-labelledby="vanity-tab" tabindex="0">
                     <div class="row mt-5">
                         <div class="col-9">
 
