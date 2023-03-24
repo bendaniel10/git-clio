@@ -45,6 +45,8 @@
                                 <#include "/reportdetails/pr_changes_overview.ftl">
                             <#elseif prCategory == "pr_comments_overview">
                                 <#include "/reportdetails/pr_comments_overview.ftl">
+                            <#elseif prCategory == "pr_commits_overview">
+                                <#include "/reportdetails/pr_commits_overview.ftl">
                             <#else>
                                 <#include "/reportdetails/pr_overview.ftl">
                             </#if>
@@ -59,9 +61,10 @@
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=prs_by_month">PRs by month</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_status">PR Status</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_creators">PR Creators</a></li>
-                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_changes_overview">PR Changes Overview</a></li>
+                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_changes_overview">Code Changes</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_auto_merge_status">Auto-Merge PRs</a></li>
-                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_comments_overview">PR Comments Overview</a></li>
+                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_comments_overview">Comments</a></li>
+                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_commits_overview">Commits</a></li>
                                 </ul>
                               </div>
                         </div>

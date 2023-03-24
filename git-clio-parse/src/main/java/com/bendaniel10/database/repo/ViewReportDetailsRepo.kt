@@ -153,14 +153,16 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
     }
 
     override fun fetchPrCCommitsOverviewById(reportId: Int) = transaction {
-        // todo
         val report = ReportEntity.findById(reportId)!!
         val commits = report.pullRequests.sumOf { it.commits }
-        val changedFiles = report.pullRequests.sumOf { it.changedFiles }
+        val prs = report.totalPullRequests
+        val averageCommitPerPR = (commits.toFloat() / prs).let { "%.2f".format(it) }
+        val commitByCountDist = buildDistributionChartData(report, "'Commits : PR'") { it.commits }
 
         ViewPRCommitsOverview(
             commits,
-            changedFiles
+            averageCommitPerPR,
+            commitByCountDist
         )
     }
 
@@ -171,25 +173,9 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
         val prs = report.totalPullRequests
         val averageCommentPerPR = (comments.toFloat() / prs).let { "%.2f".format(it) }
         val averageReviewCommentPerPR = (reviewComments.toFloat() / prs).let { "%.2f".format(it) }
-
-        fun buildDistributionChartData(title: String, mapSelector: (PullRequestEntity) -> Int) =
-            report.pullRequests.mapLazy { mapSelector.invoke(it) }
-                .groupBy { it }
-                .map { entry ->
-                    entry.value.count() to entry.key
-                }
-                .toList()
-                .sortedBy { (_, comment) -> comment }
-                .let { commentsToCountPair ->
-                    SingleLineChartData(
-                        title,
-                        commentsToCountPair.map { it.second }.joinToString { key -> "'$key'" },
-                        commentsToCountPair.map { it.first }.joinToString(),
-                    )
-                }
-
-        val commentsByCountDist = buildDistributionChartData("'Comments : PR'") { it.comments }
-        val reviewCommentsByCountDist = buildDistributionChartData("'Review Comments : PR'") { it.reviewComments }
+        val commentsByCountDist = buildDistributionChartData(report, "'Comments : PR'") { it.comments }
+        val reviewCommentsByCountDist =
+            buildDistributionChartData(report, "'Review Comments : PR'") { it.reviewComments }
 
         ViewPRsCommentsDetails(
             comments,
@@ -200,6 +186,27 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
             reviewCommentsByCountDist
         )
     }
+
+    private fun buildDistributionChartData(
+        report: ReportEntity,
+        title: String,
+        mapSelector: (PullRequestEntity) -> Int
+    ) =
+        report.pullRequests.mapLazy { mapSelector.invoke(it) }
+            .groupBy { it }
+            .map { entry ->
+                entry.value.count() to entry.key
+            }
+            .toList()
+            .sortedBy { (_, comment) -> comment }
+            .let { commentsToCountPair ->
+                SingleLineChartData(
+                    title,
+                    commentsToCountPair.map { it.second }.joinToString { key -> "'$key'" },
+                    commentsToCountPair.map { it.first }.joinToString(),
+                )
+            }
+
 
     override fun fetchPrOverviewById(reportId: Int) = transaction {
         val report = ReportEntity.findById(reportId)!!
@@ -331,7 +338,8 @@ data class ViewPRChangesOverview(
 
 data class ViewPRCommitsOverview(
     val commits: Int,
-    val changedFiles: Int,
+    val averageCommitPerPR: String,
+    val commitByCountDist: SingleLineChartData
 )
 
 private fun calculateTwoDecimalPlacesPercentage(numerator: Int, denominator: Int) =

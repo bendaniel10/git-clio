@@ -100,6 +100,17 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
                     )
                 )
             }
+            "pr_commits_overview" -> {
+                FreeMarkerContent(
+                    REPORT_DETAILS_URL,
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPrCCommitsOverviewById(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
 
             else -> {
                 null

@@ -3,7 +3,7 @@
         <div class="card">
             <div class="card-body">
                 <div class="float-end">
-                    <i class="bi bi-file-diff"></i>
+                    <i class="bi bi-chat-left-quote"></i>
                 </div>
                 <h6 class="card-subtitle text-secondary">Comments</h6>
                 <h2 class="mt-3 mb-3">${details.comments}</h2>
@@ -18,7 +18,7 @@
         <div class="card">
             <div class="card-body">
                 <div class="float-end">
-                    <i class="bi bi-check2"></i>
+                    <i class="bi bi-chat-left-quote-fill"></i>
                 </div>
                 <h6 class="card-subtitle text-secondary">Review Comments</h6>
                 <h2 class="mt-3 mb-3">${details.reviewComments}</h2>
