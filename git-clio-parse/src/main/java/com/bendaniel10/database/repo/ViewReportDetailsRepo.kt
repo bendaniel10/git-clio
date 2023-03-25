@@ -28,6 +28,7 @@ interface ViewReportDetailsRepo {
 
     fun fetchViewPRsCommentsById(reportId: Int): ViewPRsCommentsDetails
     fun fetchPRsMergeDurationOverviewById(reportId: Int): ViewPRsMergeDurationDetails
+    fun fetchPRCreatedByTimeOfDayByReportId(reportId: Int): ViewPRCreatedByTimeOfDayDetails
 }
 
 internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent {
@@ -231,6 +232,30 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
         )
     }
 
+    private fun buildBubbleDistributionChartData(
+        report: ReportEntity,
+        title: String,
+        bubbleMaker: (Int) -> Double,
+        mapSelector: (PullRequestEntity) -> Int?
+    ) =
+        report.pullRequests.mapLazy { mapSelector.invoke(it) }
+            .asSequence()
+            .filterNotNull()
+            .groupBy { it }
+            .map { entry ->
+                entry.value.count() to entry.key
+            }
+            .toList()
+            .sortedBy { (_, comment) -> comment }
+            .toList()
+            .let { countToCategoryPair ->
+                SingleBubbleChartData(
+                    title,
+                    countToCategoryPair.map { Triple(it.second, it.first, bubbleMaker(it.first)) }
+                        .joinToString { key -> "{x: ${key.first}, y: ${key.second}, r: ${key.third}}" }
+                )
+            }
+
     private fun buildDistributionChartData(
         report: ReportEntity,
         title: String,
@@ -246,11 +271,11 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
             .toList()
             .sortedBy { (_, comment) -> comment }
             .toList()
-            .let { commentsToCountPair ->
+            .let { countToCategoryPair ->
                 SingleLineChartData(
                     title,
-                    commentsToCountPair.map { it.second }.joinToString { key -> "'$key'" },
-                    commentsToCountPair.map { it.first }.joinToString(),
+                    countToCategoryPair.map { it.second }.joinToString { key -> "'$key'" },
+                    countToCategoryPair.map { it.first }.joinToString(),
                 )
             }
 
@@ -286,6 +311,57 @@ internal class ViewReportDetailsRepoImpl : ViewReportDetailsRepo, KoinComponent 
             autoMergedPercentage,
             comments,
             averageCommentPerPR
+        )
+    }
+
+    override fun fetchPRCreatedByTimeOfDayByReportId(reportId: Int) = transaction {
+        val report = ReportEntity.findById(reportId)!!
+        val prs = report.totalPullRequests
+        val (early, late) = report.pullRequests.mapLazy {
+            // early => true, late => false, !early & !late = null
+            if (it.createdAt.hour <= 6) {
+                true
+            } else if (it.createdAt.hour >= 20) {
+                false
+            } else {
+                null
+            }
+        }.filterNotNull().let { earlyAndLateFlags ->
+            earlyAndLateFlags.count { it } to earlyAndLateFlags.count { it.not() }
+        }
+
+        // This could be optimized, maybe use the countBubbleChartData for the popular/unpopular calc instead.
+        val countByHourDist = buildDistributionChartData(report, "'PRs by Hour'") { it.createdAt.hour }
+        val (popularHour, popularHourCount) = countByHourDist.let { singleLineChartData ->
+            val hours = singleLineChartData.labels.split(",").map { it.trim().replace("'", "") }
+            val count = singleLineChartData.values.split(",").map { it.trim() }
+            val maxCount = count.maxBy { it.toInt() }
+            hours[count.indexOf(maxCount)] to maxCount
+        }
+        val (unpopularHour, unpopularHourCount) = countByHourDist.let { singleLineChartData ->
+            val hours = singleLineChartData.labels.split(",").map { it.trim().replace("'", "") }
+            val count = singleLineChartData.values.split(",").map { it.trim() }
+            val minCount = count.minBy { it.toInt() }
+            hours[count.indexOf(minCount)] to minCount
+        }
+        val countBubbleChartData =
+            buildBubbleDistributionChartData(
+                report = report,
+                title = "'PRs by Hour'",
+                bubbleMaker = { (it.toDouble() * 100) / prs },
+                mapSelector = { it.createdAt.hour }
+            )
+
+        ViewPRCreatedByTimeOfDayDetails(
+            early,
+            calculateTwoDecimalPlacesPercentage(early, prs),
+            late,
+            calculateTwoDecimalPlacesPercentage(late, prs),
+            popularHour,
+            popularHourCount.toInt(),
+            unpopularHour,
+            unpopularHourCount.toInt(),
+            countBubbleChartData
         )
     }
 }
@@ -342,6 +418,11 @@ data class SingleLineChartData(
     val values: String,
 )
 
+data class SingleBubbleChartData(
+    val title: String,
+    val xyrValues: String, // "[{x: 1, y: 2, r: 3},...]"
+)
+
 data class DoubleLineChartData(
     val title: String,
     val labels: String,
@@ -394,6 +475,18 @@ data class ViewPRsMergeDurationDetails(
     val shortestDurationHours: String,
     val longestDurationHours: String,
     val durationByCount: SingleLineChartData
+)
+
+data class ViewPRCreatedByTimeOfDayDetails(
+    val early: Int,
+    val earlyPercentage: String,
+    val late: Int,
+    val latePercentage: String,
+    val popularHour: String,
+    val popularHourCount: Int,
+    val unpopularHour: String,
+    val unpopularHourCount: Int,
+    val countByHourDist: SingleBubbleChartData
 )
 
 private fun calculateTwoDecimalPlacesPercentage(numerator: Int, denominator: Int) =

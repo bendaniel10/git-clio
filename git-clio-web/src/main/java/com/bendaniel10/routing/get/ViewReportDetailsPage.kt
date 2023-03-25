@@ -122,6 +122,17 @@ class ViewReportDetailsPage : RoutingHandler, KoinComponent {
                     )
                 )
             }
+            "pr_created_by_time_of_day" -> {
+                FreeMarkerContent(
+                    REPORT_DETAILS_URL,
+                    mapOf(
+                        "reportName" to viewReportDetailsRepo.fetchReportNameById(reportId),
+                        "details" to viewReportDetailsRepo.fetchPRCreatedByTimeOfDayByReportId(reportId),
+                        "reportId" to reportId,
+                        "prCategory" to category
+                    )
+                )
+            }
 
             else -> {
                 null

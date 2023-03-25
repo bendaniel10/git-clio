@@ -48,7 +48,7 @@
     <div class="col">
         <div class="card">
             <div class="card-header">
-                <h4 class="header-title">Review distribution</h4>
+                <h4 class="header-title">Review comments distribution</h4>
             </div>
             <div class="card-body">
                 <canvas id="reviewCommentsByCountDist"></canvas>

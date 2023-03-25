@@ -49,6 +49,8 @@
                                 <#include "/reportdetails/pr_commits_overview.ftl">
                             <#elseif prCategory == "pr_merge_duration">
                                 <#include "/reportdetails/pr_merge_duration.ftl">
+                            <#elseif prCategory == "pr_created_by_time_of_day">
+                                <#include "/reportdetails/pr_created_by_time_of_day.ftl">
                             <#else>
                                 <#include "/reportdetails/pr_overview.ftl">
                             </#if>
@@ -68,6 +70,7 @@
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_auto_merge_status">Auto-Merge PRs</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_comments_overview">Comments</a></li>
                                   <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_commits_overview">Commits</a></li>
+                                  <li class="list-group-item"><a href="/view_report_details?report_id=${reportId}&pr_category=pr_created_by_time_of_day">Created by Hour</a></li>
                                 </ul>
                               </div>
                         </div>
